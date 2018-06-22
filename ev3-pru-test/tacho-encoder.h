@@ -4,8 +4,8 @@
     |_|__  \_\/  __)_) |_|_/  |_|__  \_\/   /(@)- \
                                                ((())))
  *//**
- *  \file   main.c
- *  \brief  ARM-BBR scaffolding routines
+ *  \file   tach_encoder.h
+ *  \brief  Common Header File for tacho motor encoders
  *  \author  See AUTHORS for a full list of the developers
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,61 +38,69 @@
  *
  */
 
+#ifndef TACHO_ENCODER_H_
+#define TACHO_ENCODER_H_
 
-#include <stdbool.h>
-#include <stdint.h>
+/** @addtogroup pru */
+/*@{*/
 
-#include <am18xx/sys_gpio.h>
-#include <am18xx/sys_timer.h>
+/** @defgroup tacho-encoder PRU Tacho Encoder Routines
+ *
+ * The PRU Tacho Encoder Routines keeps track of the encoder counts for the given tacho motors.
+ * FIXME: Add more details
+ *
+ */
 
-#include "resource_table_empty.h"
-#include "tacho-encoder.h"
+/*@{*/
 
-// define to flash LEDs for debugging
-#define ENABLE_LEDDEBUG
+#define INTA0 GPIO.IN_DATA45_bit.GP5P11      // GPIO 5[11]
+#define INTB0 GPIO.IN_DATA45_bit.GP5P8       // GPIO 5[8]
+#define INTC0 GPIO.IN_DATA45_bit.GP5P13      // GPIO 5[13]
+#define INTD0 GPIO.IN_DATA67_bit.GP6P9       // GPIO 6[9]
+#define  DIRA GPIO.IN_DATA01_bit.GP0P4       // GPIO 0[4]
+#define  DIRB GPIO.IN_DATA23_bit.GP2P9       // GPIO 2[9]
+#define  DIRC GPIO.IN_DATA23_bit.GP3P14      // GPIO 3[14]
+#define  DIRD GPIO.IN_DATA23_bit.GP2P8       // GPIO 2[8]
 
-#ifdef ENABLE_LEDDEBUG
+typedef long encoder_count_t;
 
-#include "leddebug.h"
-#define LEDDEBUG(side, dir) leddebug(side, dir)
-#define FLASHING_RATE 1                     // Controls the toggling rate per leddebug() calls
+typedef enum output_port_t {
+    outA, outB, outC, outD
+} output_port;
 
-#else
-
-#define LEDDEBUG(side, dir)
-
-#endif
-
-int main(void) {
-
-#ifdef ENABLE_LEDDEBUG
-    init_leddebug(FLASHING_RATE);
-#endif
-
-    uint32_t start;
-
-        LEDDEBUG(RIGHT, FORWARD);               // Force Left and Right to alternate in the loop
+typedef enum motor_identifier_t {
+    LEFT = 0, RIGHT, MAX_TACHO_MOTORS      // MAX_TACHO_MOTORS used to count number of motors
+} motor_identifier;
 
 
-    /* blink the left green LED on the EV3 */
-    while (true) {
+typedef enum encoder_direction_t {
+    UNKNOWN = 0,
+    FORWARD = 1,
+    REVERSE = -1
+} encoder_direction;
 
-        LEDDEBUG(LEFT, REVERSE);
-        LEDDEBUG(RIGHT, FORWARD);
+typedef struct {
+    output_port         port;
+    motor_identifier    side;
+    encoder_direction   dir;
+    encoder_count_t     count;
 
-        /* TIMER64P0.TIM34 is configured by Linux as a free run counter so we
-         * can use it here to keep track of time. This timer runs off of the
-         * external oscillator, so it runs at 24MHz (each count is 41.67ns).
-         * Since it counts up to the full unsigned 32-bit value, we can
-         * subtract without worrying about if the value wrapped around.
-         */
-        start = TIMER64P0.TIM34;
-        while (TIMER64P0.TIM34 - start < 12000000) { }
+} encoder_struct;
 
-        LEDDEBUG(LEFT, REVERSE);
-        LEDDEBUG(RIGHT, FORWARD);
+/** Initialize tacho encoder
+ *
+ * FIXME: Assumes two ports only
+ *
+ * @param leftmotor: output_port, rightmotor: output_port
+ * @return None
+ *
+ */
 
-        start = TIMER64P0.TIM34;
-        while (TIMER64P0.TIM34 - start < 12000000) { }
-    }
-}
+void init_tachoencoder(output_port leftmotor, output_port rightmotor);
+
+
+/*@}*/
+/*@}*/
+
+
+#endif /* TACHO_ENCODER_H_ */

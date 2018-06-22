@@ -4,8 +4,8 @@
     |_|__  \_\/  __)_) |_|_/  |_|__  \_\/   /(@)- \
                                                ((())))
  *//**
- *  \file   main.c
- *  \brief  ARM-BBR scaffolding routines
+ *  \file   leddebug.h
+ *  \brief  Debug support routine Header File for tacho motor encoders
  *  \author  See AUTHORS for a full list of the developers
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,61 +38,69 @@
  *
  */
 
+#ifndef LEDDEBUG_H_
+#define LEDDEBUG_H_
 
 #include <stdbool.h>
-#include <stdint.h>
-
 #include <am18xx/sys_gpio.h>
-#include <am18xx/sys_timer.h>
-
-#include "resource_table_empty.h"
 #include "tacho-encoder.h"
 
-// define to flash LEDs for debugging
-#define ENABLE_LEDDEBUG
+/** @addtogroup pru */
+/*@{*/
 
-#ifdef ENABLE_LEDDEBUG
+/** @defgroup leddebug PRU Debug Support Routines
+ *
+ * The PRU Debug Support Routines display encoder position changes via the LEDs.
+ * Green is for forward motion, while Red is for reverse motion.
+ * The toggling rate depends on the FLASHING_RATE constant.
+ * e.g. set flashing_rate to 1 to toggle the LED for each debug_count value change,
+ *      while flashing_rate of 10 toggles the LED when the debug_count is a multiple of 10.
+ *
+ */
 
-#include "leddebug.h"
-#define LEDDEBUG(side, dir) leddebug(side, dir)
-#define FLASHING_RATE 1                     // Controls the toggling rate per leddebug() calls
-
-#else
-
-#define LEDDEBUG(side, dir)
-
-#endif
-
-int main(void) {
-
-#ifdef ENABLE_LEDDEBUG
-    init_leddebug(FLASHING_RATE);
-#endif
-
-    uint32_t start;
-
-        LEDDEBUG(RIGHT, FORWARD);               // Force Left and Right to alternate in the loop
+/*@{*/
 
 
-    /* blink the left green LED on the EV3 */
-    while (true) {
+#define DIODE0 GPIO.OUT_DATA67_bit.GP6P13           // Left Red    GPIO 6[13]
+#define DIODE1 GPIO.OUT_DATA67_bit.GP6P7            // Left Green  GPIO 6[7]
+#define DIODE2 GPIO.OUT_DATA67_bit.GP6P14           // Right Green GPIO 6[14]
+#define DIODE3 GPIO.OUT_DATA67_bit.GP6P12           // Right Red   GPIO 6[12]
 
-        LEDDEBUG(LEFT, REVERSE);
-        LEDDEBUG(RIGHT, FORWARD);
+#define LEFT_RED DIODE0
+#define LEFT_GREEN DIODE1
+#define RIGHT_RED DIODE3
+#define RIGHT_GREEN DIODE2
 
-        /* TIMER64P0.TIM34 is configured by Linux as a free run counter so we
-         * can use it here to keep track of time. This timer runs off of the
-         * external oscillator, so it runs at 24MHz (each count is 41.67ns).
-         * Since it counts up to the full unsigned 32-bit value, we can
-         * subtract without worrying about if the value wrapped around.
-         */
-        start = TIMER64P0.TIM34;
-        while (TIMER64P0.TIM34 - start < 12000000) { }
+typedef long debug_count_t;
 
-        LEDDEBUG(LEFT, REVERSE);
-        LEDDEBUG(RIGHT, FORWARD);
+typedef struct {
+    encoder_direction   dir;
+    debug_count_t       debug_count;
+    debug_count_t       flashing_rate;
+    bool                green_state;
+    bool                red_state;
+} leddebug_state;
 
-        start = TIMER64P0.TIM34;
-        while (TIMER64P0.TIM34 - start < 12000000) { }
-    }
-}
+/** Initialize leddebug
+ *
+ * @param flashing_rate: rate to toggle LED
+ * @return None
+ *
+ */
+void init_leddebug(debug_count_t flashing_rate);
+
+/** leddebug
+ *
+ * Update debug state
+ *
+ * @param side: motor identifier
+ * @param dir: encoder motion direction
+ * @return None
+ *
+ */
+void leddebug(motor_identifier side, encoder_direction dir);
+
+/*@}*/
+/*@}*/
+
+#endif /* LEDDEBUG_H_ */
