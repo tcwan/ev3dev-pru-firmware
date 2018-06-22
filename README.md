@@ -22,11 +22,11 @@ This repository has a submodule, so to clone...
 
     git clone --recursive https://github.com/ev3dev/ev3dev-pru-firmware
 
-This requires [TI CSS6](http://processors.wiki.ti.com/index.php/Download_CCS)
-with PRU Compiler Tools 2.1.2 to build. (Use the web installer to install
-the minimum required components.)
+This requires [TI CSS6 or later](http://processors.wiki.ti.com/index.php/Download_CCS)
+with PRU Compiler Tools 2.1.2 or later to build. (Use the web installer to install
+the minimum required components for CCS, then download and install the PRU Compiler Tools inside the CCS App Center.)
 
-Once CSS6 is installed, run it and open a workspace using the directory where
+Once CSS is installed, run it and open a workspace using the directory where
 you cloned the git repository. Then press <key>CTRL</key> + <key>B</key> to
 build.
 
