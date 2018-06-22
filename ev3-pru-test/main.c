@@ -2,6 +2,7 @@
  * main.c
  */
 
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -15,8 +16,8 @@ int main(void) {
 
     /* blink the left green LED on the EV3 */
     while (true) {
-        /* LED is connected to GPIO 6[7] */
-        GPIO.OUT_DATA67_bit.GP6P7 = 1;
+        LEFT_GREEN = 1;
+        RIGHT_RED = 0;
 
         /* TIMER64P0.TIM34 is configured by Linux as a free run counter so we
          * can use it here to keep track of time. This timer runs off of the
@@ -27,7 +28,8 @@ int main(void) {
         start = TIMER64P0.TIM34;
         while (TIMER64P0.TIM34 - start < 12000000) { }
 
-        GPIO.OUT_DATA67_bit.GP6P7 = 0;
+        LEFT_GREEN = 0;
+        RIGHT_RED = 1;
 
         start = TIMER64P0.TIM34;
         while (TIMER64P0.TIM34 - start < 12000000) { }
