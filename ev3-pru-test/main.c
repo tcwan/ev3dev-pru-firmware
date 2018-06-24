@@ -54,8 +54,8 @@
 #ifdef ENABLE_LEDDEBUG
 
 #include "leddebug.h"
-#define LEDDEBUG(side, dir) leddebug(side, dir)
-#define FLASHING_RATE 1                     // Controls the toggling rate per leddebug() calls
+#define LEDDEBUG(motor, dir) leddebug_update(motor, dir)
+#define FLASHING_INTERVAL 1                     // Controls the LED toggling interval per leddebug() calls
 
 #else
 
@@ -63,22 +63,59 @@
 
 #endif
 
+
+/* private functions */
+
+// Periodic Timer routines
+// Timer will auto-reload for next timer expiry
+
+#define TIMER_PERIOD 12000000
+
+static timer_t last_timerexpiry;
+static timer_t timer_period;
+
+// returns start time
+timer_t timer_init(timer_t period) {
+	last_timerexpiry = TIMER64P0.TIM34;
+	timer_period = period;
+	return last_timerexpiry;
+}
+
+bool timer_hasexpired(timer_t *currtime) {
+	*currtime = TIMER64P0.TIM34;
+	if (*currtime - last_timerexpiry >= timer_period) {
+		last_timerexpiry += timer_period;		// advance timer expiry timestamp
+		return true;
+	}
+	else
+		return false;
+}
+
 int main(void) {
 
 #ifdef ENABLE_LEDDEBUG
-    init_leddebug(FLASHING_RATE);
+    leddebug_init(FLASHING_INTERVAL);
+    leddebug_assignmotors(MOTOR0, MOTOR1);
 #endif
 
     uint32_t start;
+    encodervec oldevent = 0;
+    timer_t currtime;
 
-        LEDDEBUG(RIGHT, FORWARD);               // Force Left and Right to alternate in the loop
 
+    // Initialize tacho-encoder
+    // Setup all ports for capture
+    tachoencoder_init(outA, outB, outC, outD);
+
+    LEDDEBUG(MOTOR1, FORWARD);               // Force Left and Right to alternate in the loop
+
+    timer_init(TIMER_PERIOD);
 
     /* blink the left green LED on the EV3 */
     while (true) {
 
-        LEDDEBUG(LEFT, REVERSE);
-        LEDDEBUG(RIGHT, FORWARD);
+        LEDDEBUG(MOTOR0, REVERSE);
+        LEDDEBUG(MOTOR1, FORWARD);
 
         /* TIMER64P0.TIM34 is configured by Linux as a free run counter so we
          * can use it here to keep track of time. This timer runs off of the
@@ -86,13 +123,11 @@ int main(void) {
          * Since it counts up to the full unsigned 32-bit value, we can
          * subtract without worrying about if the value wrapped around.
          */
-        start = TIMER64P0.TIM34;
-        while (TIMER64P0.TIM34 - start < 12000000) { }
+        while (!timer_hasexpired(&currtime));
 
-        LEDDEBUG(LEFT, REVERSE);
-        LEDDEBUG(RIGHT, FORWARD);
+        LEDDEBUG(MOTOR0, REVERSE);
+        LEDDEBUG(MOTOR1, FORWARD);
 
-        start = TIMER64P0.TIM34;
-        while (TIMER64P0.TIM34 - start < 12000000) { }
+        while (!timer_hasexpired(&currtime));
     }
 }

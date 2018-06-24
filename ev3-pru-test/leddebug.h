@@ -52,9 +52,9 @@
  *
  * The PRU Debug Support Routines display encoder position changes via the LEDs.
  * Green is for forward motion, while Red is for reverse motion.
- * The toggling rate depends on the FLASHING_RATE constant.
- * e.g. set flashing_rate to 1 to toggle the LED for each debug_count value change,
- *      while flashing_rate of 10 toggles the LED when the debug_count is a multiple of 10.
+ * The LED toggling depends on the flashing_interval value.
+ * e.g. set flashing_interval to 1 to toggle the LED for each debug_count value change,
+ *      while flashing_interval of 10 toggles the LED when the debug_count is a multiple of 10.
  *
  */
 
@@ -73,23 +73,56 @@
 
 typedef long debug_count_t;
 
+typedef enum led_identifier_t {
+    LEFT = 0, RIGHT, MAX_LEDS      // MAX_LEDS used to count number of display LEDs
+
+} led_identifier;
+
 typedef struct {
     encoder_direction   dir;
     debug_count_t       debug_count;
-    debug_count_t       flashing_rate;
+    debug_count_t       flashing_interval;
     bool                green_state;
     bool                red_state;
 } leddebug_state;
 
-/** Initialize leddebug
+/** leddebug_setleds
  *
- * @param flashing_rate: rate to toggle LED
+ * Internal routine
+ *
+ * Actually program the LEDs to required settings
+ *
+ * @param None
  * @return None
  *
  */
-void init_leddebug(debug_count_t flashing_rate);
+void leddebug_setleds();
 
-/** leddebug
+
+/** leddebug_init
+ *
+ * Initialize leddebug
+ *
+ * @param flashing_interval: interval to toggle LED
+ * @return None
+ *
+ */
+void leddebug_init(debug_count_t flashing_interval);
+
+/** leddebug_assignmotors
+ *
+ * Assign motors to LEDs
+ *
+ * @param left: motor identifier assigned to left LED
+ * @param right: motor identifier assigned to right LED
+ *
+ * If LED is not used, pass MOTOR_UNUSED as the parameter
+ * @return None
+ *
+ */
+void leddebug_assignmotors(motor_identifier left, motor_identifier right);
+
+/** leddebug_update
  *
  * Update debug state
  *
@@ -98,7 +131,7 @@ void init_leddebug(debug_count_t flashing_rate);
  * @return None
  *
  */
-void leddebug(motor_identifier side, encoder_direction dir);
+void leddebug_update(motor_identifier side, encoder_direction dir);
 
 /*@}*/
 /*@}*/

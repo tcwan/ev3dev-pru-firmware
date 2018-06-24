@@ -41,58 +41,76 @@
 #include "leddebug.h"
 
 static leddebug_state ledstate[MAX_TACHO_MOTORS];
+static motor_identifier display_motor[MAX_LEDS];
 
-void init_leddebug(debug_count_t flashing_rate) {
+/* Internal Routines */
+void leddebug_setleds() {
+    // program the LED control GPIOs
+	if ((unsigned) display_motor[LEFT] < MAX_TACHO_MOTORS) {
+		LEFT_GREEN  = (ledstate[display_motor[LEFT]].green_state ? 1 : 0);
+		LEFT_RED    = (ledstate[display_motor[LEFT]].red_state ? 1 : 0);
+	}
+	if ((unsigned) display_motor[RIGHT] < MAX_TACHO_MOTORS) {
+		RIGHT_GREEN = (ledstate[display_motor[RIGHT]].green_state ? 1 : 0);
+		RIGHT_RED   = (ledstate[display_motor[RIGHT]].red_state ? 1 : 0);
+	}
+}
+
+/* Public Routines */
+void leddebug_init(debug_count_t flashing_interval) {
 
     int i;
     for (i = 0; i < MAX_TACHO_MOTORS; i++) {
         ledstate[i].dir = UNKNOWN;
         ledstate[i].debug_count = 0;
-        ledstate[i].flashing_rate = flashing_rate;
+        ledstate[i].flashing_interval = flashing_interval;
         ledstate[i].green_state = false;
         ledstate[i].red_state = false;
     }
+    display_motor[LEFT] = display_motor[RIGHT] = MOTOR_UNUSED;
 }
 
 
-void leddebug(motor_identifier side, encoder_direction dir) {
+void leddebug_assignmotors(motor_identifier left, motor_identifier right) {
+	display_motor[LEFT] = ((unsigned) left <= MOTOR_UNUSED) ? left : MOTOR_UNUSED;
+    display_motor[RIGHT] = ((unsigned) right <= MOTOR_UNUSED) ? right : MOTOR_UNUSED;
+}
 
-    // FIXME: Supports only two motors for now
-    if ((side == LEFT) || (side == RIGHT)) {
 
-        if (ledstate[side].dir != dir) {
+void leddebug_update(motor_identifier motor, encoder_direction dir) {
+
+	if ((unsigned) motor < MAX_TACHO_MOTORS) {
+
+        if (ledstate[motor].dir != dir) {
             // Reset counters
-            ledstate[side].debug_count = 0;
-            ledstate[side].green_state = false;
-            ledstate[side].red_state = false;
+            ledstate[motor].debug_count = 0;
+            ledstate[motor].green_state = false;
+            ledstate[motor].red_state = false;
         }
 
         // Update counts
-        ledstate[side].dir = dir;
-        ledstate[side].debug_count++;                           // Debug count will always increment regardless of direction
+        ledstate[motor].dir = dir;
+        ledstate[motor].debug_count++;                           // Debug count will always increment regardless of direction
 
         // Update led state
         switch (dir) {
         case FORWARD:
-            ledstate[side].red_state = false;
-            if ((ledstate[side].debug_count % ledstate[side].flashing_rate) == 0)
-                ledstate[side].green_state = (ledstate[side].green_state ? false : true);
+            ledstate[motor].red_state = false;
+            if ((ledstate[motor].debug_count % ledstate[motor].flashing_interval) == 0)
+                ledstate[motor].green_state = (ledstate[motor].green_state ? false : true);
             break;
         case REVERSE:
-            ledstate[side].green_state = false;
-            if ((ledstate[side].debug_count % ledstate[side].flashing_rate) == 0)
-                ledstate[side].red_state = (ledstate[side].red_state ? false : true);
+            ledstate[motor].green_state = false;
+            if ((ledstate[motor].debug_count % ledstate[motor].flashing_interval) == 0)
+                ledstate[motor].red_state = (ledstate[motor].red_state ? false : true);
             break;
         default:
-            ledstate[side].green_state = true;
-            ledstate[side].red_state = true;
+            ledstate[motor].green_state = true;
+            ledstate[motor].red_state = true;
             break;
         }
 
         // program the LED control GPIOs
-        LEFT_GREEN  = (ledstate[LEFT].green_state ? 1 : 0);
-        LEFT_RED    = (ledstate[LEFT].red_state ? 1 : 0);
-        RIGHT_GREEN = (ledstate[RIGHT].green_state ? 1 : 0);
-        RIGHT_RED   = (ledstate[RIGHT].red_state ? 1 : 0);
+        leddebug_setleds();
     }
 }
