@@ -104,7 +104,7 @@ int main(void) {
 
     // Initialize tacho-encoder
     // Setup all ports for capture
-    tachoencoder_init(outA, outB, outC, outD);
+    tachoencoder_init(RINGBUF_MAXITEMS, outA, outB, outC, outD);
 
     LEDDEBUG(MOTOR1, FORWARD);               // Force Left and Right to alternate in the loop
 

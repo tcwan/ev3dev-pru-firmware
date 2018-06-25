@@ -196,7 +196,7 @@ encoder_value tachoencoder_readport(output_port port);
  */
 encodervec_t tachoencoder_readallports();
 
-/** tachoencoder_updatemotorestate
+/** tachoencoder_updatemotorstate
  *
  * Internal routine
  *
@@ -208,7 +208,7 @@ encodervec_t tachoencoder_readallports();
  * @return None
  *
  */
-void tachoencoder_updatemotorestate(motor_identifier motor, encoder_value encval);
+void tachoencoder_updatemotorstate(motor_identifier motor, encoder_value encval);
 
 /** tachoencoder_getdircount
  *
@@ -231,6 +231,7 @@ output_port tachoencoder_getdircount(motor_identifier motor, encoder_direction *
  *
  * All motor encoder counts are zeroed
  *
+ * @param maxitems: event_index_t, maximum number of items in ring buffer
  * @param motor0_port, motor1_port, motor2_port, motor3_port: output_port
  *
  * Unused motors should pass PORT_UNUSED as parameter
@@ -239,7 +240,7 @@ output_port tachoencoder_getdircount(motor_identifier motor, encoder_direction *
  * @return None
  *
  */
-void tachoencoder_init(output_port motor0_port, output_port motor1_port, output_port motor2_port, output_port motor3_port);
+void tachoencoder_init(event_index_t maxitems, output_port motor0_port, output_port motor1_port, output_port motor2_port, output_port motor3_port);
 
 /** tachoencoder_activatemotor
  *

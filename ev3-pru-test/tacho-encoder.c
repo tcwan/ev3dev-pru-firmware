@@ -152,7 +152,7 @@ encodervec_t tachoencoder_readallports() {
 	return allinputs;
 }
 
-void tachoencoder_updatmotorestate(motor_identifier motor, encoder_value encval) {
+void tachoencoder_updatmotorstate(motor_identifier motor, encoder_value encval) {
 	// State machine for encoder processing
 	//
 	// [State Machine Diagram](State-Machine/Quadrature-Encoder-States-Simplified.eps)
@@ -255,19 +255,19 @@ output_port tachoencoder_getdircount(motor_identifier motor, encoder_direction *
 
 
 /* Public Routines */
-void tachoencoder_init(output_port motor0_port, output_port motor1_port, output_port motor2_port, output_port motor3_port) {
+void tachoencoder_init(event_index_t maxitems, output_port motor0_port, output_port motor1_port, output_port motor2_port, output_port motor3_port) {
 
 	// Set semaphore
 	encoder_history_config->updating = true;
 
 	// Initialize History Configuration
-	encoder_history_config->ringbuf_maxitems = RINGBUF_MAXITEMS;
+	encoder_history_config->ringbuf_maxitems = maxitems;
 	encoder_history_config->lastevent_index = 0;
 	encoder_history_config->lastevent_time = 0;
 	memset(&(encoder_history_config->raw_speed), 0, sizeof(encoder_count_t) * MAX_TACHO_MOTORS);    // FIXME: Is it possible to refer to struct member for sizeof()?
 
 	// Zero history buffer
-	memset((void *) encoder_event_buffer, 0, sizeof(encoder_event_struct) * RINGBUF_MAXITEMS);
+	memset((void *) encoder_event_buffer, 0, sizeof(encoder_event_struct) * maxitems);
 
 	// Initialize last event vector and active encoder bitmask
 	lasteventvec = EVENTVEC_RESETMASK;
@@ -349,7 +349,7 @@ void tachoencoder_reset() {
 		latestevent.count[i] = encoder_config[i].count;
 	}
 
-	for (i = 0; i < RINGBUF_MAXITEMS; i++) {
+	for (i = 0; i < encoder_history_config->ringbuf_maxitems; i++) {
 		memcpy((void *)&(encoder_event_buffer[i]), &latestevent, sizeof(encoder_event_struct));
 	}
 	// Release semaphore
@@ -381,7 +381,7 @@ void tachoencoder_updateencoderstate(encodervec_t neweventvec, timer_t timestamp
 		if ((encoder_config[i].port != PORT_UNUSED) && (encoder_config[i].port < MAX_PORTS)) {
 
 			portevent = tachoencoder_extractportevent(encoder_config[i].port, neweventvec);
-			tachoencoder_updatemotorestate((motor_identifier) i, portevent);
+			tachoencoder_updatemotorstate((motor_identifier) i, portevent);
 		}
 	}
 
