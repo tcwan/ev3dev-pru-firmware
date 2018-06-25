@@ -42,6 +42,10 @@
 #define TACHO_ENCODER_H_
 
 #include <stdbool.h>
+#include <stdint.h>
+
+#include <am18xx/sys_gpio.h>
+
 
 /** @addtogroup pru */
 /*@{*/
@@ -78,15 +82,15 @@
 #define ENCODER_INTA0_MASK 0x02				// Bitmask for INTA0 setting
 #define ENCODER_DIRA_MASK  0x01				// Bitmask for DIRA setting
 
-#define ENCODER_PORTAVEC_MASK (ENCODER_INTA0_MASK | ENCODER_DIRA_MASK)
-#define ENCODER_PORTBVEC_MASK (ENCODER_INTB0_MASK | ENCODER_DIRB_MASK)
-#define ENCODER_PORTCVEC_MASK (ENCODER_INTC0_MASK | ENCODER_DIRC_MASK)
-#define ENCODER_PORTDVEC_MASK (ENCODER_INTD0_MASK | ENCODER_DIRD_MASK)
+#define ENCODER_PORTAVEC_MASK (encodervec_t) (ENCODER_INTA0_MASK | ENCODER_DIRA_MASK)
+#define ENCODER_PORTBVEC_MASK (encodervec_t) (ENCODER_INTB0_MASK | ENCODER_DIRB_MASK)
+#define ENCODER_PORTCVEC_MASK (encodervec_t) (ENCODER_INTC0_MASK | ENCODER_DIRC_MASK)
+#define ENCODER_PORTDVEC_MASK (encodervec_t) (ENCODER_INTD0_MASK | ENCODER_DIRD_MASK)
 
-#define ENCODER_PORTAVEC_SHIFT 0
-#define ENCODER_PORTBVEC_SHIFT 2
-#define ENCODER_PORTCVEC_SHIFT 4
-#define ENCODER_PORTDVEC_SHIFT 6
+#define ENCODER_PORTAVEC_SHIFT (encodervec_t) 0
+#define ENCODER_PORTBVEC_SHIFT (encodervec_t) 2
+#define ENCODER_PORTCVEC_SHIFT (encodervec_t) 4
+#define ENCODER_PORTDVEC_SHIFT (encodervec_t) 6
 
 
 typedef long encoder_count_t;
@@ -150,10 +154,10 @@ typedef struct {
 
 
 // FIXME: The On Chip RAM needs to  be shared with the PRU SUART buffers
-#define ON_CHIP_RAM_START ((volatile void *)(0x80000000))
+#define ON_CHIP_RAM_START ((volatile encoder_history_struct *)(0x80000000))
 #define ON_CHIP_RAM_SIZE  0x20000
 #define EVENT_RINGBUF_START  (volatile encoder_event_struct *) ((ON_CHIP_RAM_START + sizeof(encoder_event_struct)))
-#define RINGBUF_MAXITEMS (ON_CHIP_RAM_SIZE - EVENT_RINGBUF_START) / (MAX_TACHO_MOTORS * sizeof(encoder_event_struct))
+#define RINGBUF_MAXITEMS ((ON_CHIP_RAM_SIZE - sizeof(encoder_history_struct)) / (MAX_TACHO_MOTORS * sizeof(encoder_event_struct)))
 
 /** tachoencoder_extractportevent
  *
@@ -192,7 +196,7 @@ encoder_value tachoencoder_readport(output_port port);
  */
 encodervec_t tachoencoder_readallports();
 
-/** tachoencoder_updatmotorestate
+/** tachoencoder_updatemotorestate
  *
  * Internal routine
  *
@@ -204,7 +208,7 @@ encodervec_t tachoencoder_readallports();
  * @return None
  *
  */
-void tachoencoder_updatmotorestate(motor_identifier motor, encoder_value encval);
+void tachoencoder_updatemotorestate(motor_identifier motor, encoder_value encval);
 
 /** tachoencoder_getdircount
  *

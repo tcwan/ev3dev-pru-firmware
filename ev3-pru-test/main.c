@@ -98,8 +98,7 @@ int main(void) {
     leddebug_assignmotors(MOTOR0, MOTOR1);
 #endif
 
-    uint32_t start;
-    encodervec oldevent = 0;
+    encodervec_t oldevent = 0;
     timer_t currtime;
 
 
