@@ -68,9 +68,12 @@
 #define  DIRC GPIO.IN_DATA23_bit.GP3P14     // GPIO 3[14]
 #define  DIRD GPIO.IN_DATA23_bit.GP2P8      // GPIO 2[8]
 
-/* Used by tachoencoder_readport() encoder_value */
+/* Used by tachoencoder_readallports() encoder_value */
 #define ENCODER_INTX0_MASK 0x02				// Bitmask for INTx0 setting
 #define ENCODER_DIRX_MASK  0x01				// Bitmask for DIRx setting
+
+#define ENCODERVEC_EVENT_SHIFT 2
+#define ENCODERVEC_EVENT_MASK  (ENCODER_INTX0_MASK | ENCODER_DIRX_MASK)
 
 /* Used by tachoencoder_readallports() encodervec_t */
 #define ENCODER_INTD0_MASK 0x80				// Bitmask for INTD0 setting
@@ -87,11 +90,12 @@
 #define ENCODER_PORTCVEC_MASK (encodervec_t) (ENCODER_INTC0_MASK | ENCODER_DIRC_MASK)
 #define ENCODER_PORTDVEC_MASK (encodervec_t) (ENCODER_INTD0_MASK | ENCODER_DIRD_MASK)
 
+#if 0
 #define ENCODER_PORTAVEC_SHIFT (encodervec_t) 0
 #define ENCODER_PORTBVEC_SHIFT (encodervec_t) 2
 #define ENCODER_PORTCVEC_SHIFT (encodervec_t) 4
 #define ENCODER_PORTDVEC_SHIFT (encodervec_t) 6
-
+#endif
 
 typedef long encoder_count_t;
 typedef uint32_t timer_t;
@@ -172,6 +176,7 @@ typedef struct {
  */
 encoder_value tachoencoder_extractportevent(output_port port, encodervec_t event);
 
+#if 0
 /** tachoencoder_readport
  *
  * Internal routine
@@ -183,6 +188,7 @@ encoder_value tachoencoder_extractportevent(output_port port, encodervec_t event
  *
  */
 encoder_value tachoencoder_readport(output_port port);
+#endif
 
 /** tachoencoder_readallports
  *

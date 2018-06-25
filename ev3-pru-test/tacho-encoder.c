@@ -50,9 +50,11 @@ static encodervec_t lasteventvec;
 
 /* Private utility functions */
 void _clear_encoder_config(motor_identifier motor) {
-	encoder_config[motor].dir = UNKNOWN;
-	encoder_config[motor].count = 0;
-	encoder_config[motor].state = ENC_IDLE;
+    encoder_struct *encoder_configptr = &(encoder_config[motor]);
+
+    encoder_configptr->dir = UNKNOWN;
+    encoder_configptr->count = 0;
+    encoder_configptr->state = ENC_IDLE;
 
 }
 
@@ -83,8 +85,8 @@ encoder_value tachoencoder_extractportevent(output_port port, encodervec_t event
 	// This routine is used to convert the event vector obtained by tachoencoder_readallports()
 	// to an event for a specific port
 	//
-	encoder_value portevent;
 
+# if 0
 	switch (port) {
 	case outA:
 		portevent = (encoder_value) ((event & ENCODER_PORTAVEC_MASK) >> ENCODER_PORTAVEC_SHIFT);
@@ -103,10 +105,22 @@ encoder_value tachoencoder_extractportevent(output_port port, encodervec_t event
 		portevent = ENC_00;					// Arbitrary return value
 		break;
 	}
+#endif
+
+    encoder_value portevent = ENC_00;                           // Arbitrary return value
+
+	if ((port != PORT_UNUSED) && (port < MAX_PORTS)) {
+        output_port i = outA;
+        while (i < port) {
+            event = event >> ENCODERVEC_EVENT_SHIFT;
+            i++;
+        }
+        portevent = (encoder_value) (event & ENCODERVEC_EVENT_MASK);
+	}
 	return portevent;
 }
 
-
+#if 0
 encoder_value tachoencoder_readport(output_port port) {
 
 	// This routine will read the encoder values from a single port.
@@ -136,6 +150,8 @@ encoder_value tachoencoder_readport(output_port port) {
 
 	return input;
 }
+#endif
+
 
 encodervec_t tachoencoder_readallports() {
 	// This routine is independent of tachoencoder_readport() for performance reasons
@@ -168,8 +184,12 @@ void tachoencoder_updatmotorstate(motor_identifier motor, encoder_value encval) 
 	if ((unsigned) encval > ENC_11)
 		return;
 
+
+
 	if ((unsigned) motor < MAX_TACHO_MOTORS) {
-		currstate = encoder_config[motor].state;
+	    encoder_struct *encoder_configptr = &(encoder_config[motor]);
+
+	    currstate = encoder_configptr->state;
 
 		if (encval != currstate) {
 
@@ -226,13 +246,13 @@ void tachoencoder_updatmotorstate(motor_identifier motor, encoder_value encval) 
 		// Assume that newstate has valid values here
 		if (newstate == ENC_IDLE) {
 			// Somehow we didn't get an expected transition
-			encoder_config[motor].state = ENC_IDLE;					// Goto Idle
-			encoder_config[motor].dir = UNKNOWN;					// Reset direction indicator,  but don't update event count
+		    encoder_configptr->state = ENC_IDLE;					// Goto Idle
+		    encoder_configptr->dir = UNKNOWN;					// Reset direction indicator,  but don't update event count
 		} else if (newstate != currstate) {
 				// Update state and encoder count only if we have changed states
-				encoder_config[motor].state = newstate;
-				encoder_config[motor].dir = newdir;
-				encoder_config[motor].count += newdir;
+		        encoder_configptr->state = newstate;
+		        encoder_configptr->dir = newdir;
+		        encoder_configptr->count += newdir;
 		} else {
 			// We are still in the same state
 			// Do nothing
@@ -245,9 +265,10 @@ output_port tachoencoder_getdircount(motor_identifier motor, encoder_direction *
 	output_port retval = PORT_UNUSED;
 
 	if ((unsigned) motor < MAX_TACHO_MOTORS) {
-		retval = encoder_config[motor].port;
-		*dir = encoder_config[motor].dir;
-		*count = encoder_config[motor].count;
+	    encoder_struct *encoder_configptr = &(encoder_config[motor]);
+		retval = encoder_configptr->port;
+		*dir = encoder_configptr->dir;
+		*count = encoder_configptr->count;
 	}
 	return retval;
 
@@ -341,12 +362,15 @@ void tachoencoder_reset() {
 
 	int i;
 	for (i = 0; i < MAX_TACHO_MOTORS; i++) {
+
+	    encoder_struct *encoder_configptr = &(encoder_config[i]);
+
 		// Reset encoder state
-		encoder_config[i].dir = UNKNOWN;
-		encoder_config[i].state = ENC_IDLE;
+	    encoder_configptr->dir = UNKNOWN;
+	    encoder_configptr->state = ENC_IDLE;
 
 		// initialize event history buffer with last count for each motor
-		latestevent.count[i] = encoder_config[i].count;
+		latestevent.count[i] = encoder_configptr->count;
 	}
 
 	for (i = 0; i < encoder_history_config->ringbuf_maxitems; i++) {
@@ -400,14 +424,21 @@ void tachoencoder_updateteventbuffer(event_index_t index, timer_t timestamp) {
 	itemptr = &(encoder_event_buffer[index]);
 
 	for (i = 0; i < MAX_TACHO_MOTORS; i++) {
-		if ((encoder_config[i].port != PORT_UNUSED) && (encoder_config[i].port < MAX_PORTS)) {
+
+        encoder_struct *encoder_configptr = &(encoder_config[i]);
+        output_port port = encoder_configptr->port;
+        encoder_count_t new_count = encoder_configptr->count;
+        volatile encoder_count_t *buffer_index_countptr = &(itemptr->count[i]);
+        volatile encoder_count_t *raw_speedptr = &(encoder_history_config->raw_speed[i]);
+
+		if ((port != PORT_UNUSED) && (port < MAX_PORTS)) {
 			// Calculate raw speed = (new count - old count) [per event buffer window interval]
-			encoder_history_config->raw_speed[i] = encoder_config[i].count - itemptr->count[i];
+			*raw_speedptr = new_count - *buffer_index_countptr;
 			// Store new event into buffer
-			itemptr->count[i] = encoder_config[i].count;
+			*buffer_index_countptr = new_count;
 		} else {
-			encoder_history_config->raw_speed[i] = 0;
-			itemptr->count[i] = 0;
+		    *raw_speedptr = 0;
+			*buffer_index_countptr = 0;
 
 		}
 	}
