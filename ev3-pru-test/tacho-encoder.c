@@ -291,16 +291,16 @@ output_port tachoencoder_getdircount(motor_identifier motor, encoder_direction *
 /* Public Routines */
 void tachoencoder_init(event_index_t maxitems, output_port motor0_port, output_port motor1_port, output_port motor2_port, output_port motor3_port) {
 
-    _set_semaphore();
 
-	// Initialize History Configuration
-	encoder_history_config->ringbuf_maxitems = maxitems;
-	encoder_history_config->lastevent_index = 0;
-	encoder_history_config->lastevent_time = 0;
-	memset(&(encoder_history_config->raw_speed), 0, sizeof(encoder_count_t) * MAX_TACHO_MOTORS);    // FIXME: Is it possible to refer to struct member for sizeof()?
-
+	// Initialize Encoder History struct and history buffer (assumed contiguous)
+    memset((void *) encoder_history_config, 0, sizeof(encoder_history_struct) + sizeof(encoder_event_struct) * maxitems);
+    _set_semaphore();                           // Semaphore was zeroed out by memset()
+    encoder_history_config->ringbuf_maxitems = maxitems;
+#if 0
+    // Merge buffer clearing code into one memset() call
 	// Zero history buffer
 	memset((void *) encoder_event_buffer, 0, sizeof(encoder_event_struct) * maxitems);
+#endif
 
 	// Initialize last event vector and active encoder bitmask
 	lasteventvec = EVENTVEC_RESETMASK;
@@ -313,7 +313,10 @@ void tachoencoder_init(event_index_t maxitems, output_port motor0_port, output_p
 		// encoder_config[i].port = PORT_UNUSED;			// Assumes that the port initialization step below configures all motors
 		_reset_encoder_config((motor_identifier) i, true);
 
+#if 0
+		// already cleared by memset()
 		encoder_history_config->raw_speed[i] = 0;			// Clear raw_speed variable for history buffer
+#endif
 	}
 
 	// Activate Encoders and update bitmask

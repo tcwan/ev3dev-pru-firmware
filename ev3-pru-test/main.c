@@ -74,15 +74,26 @@
 static timer_t last_timerexpiry;
 static timer_t timer_period;
 
-// returns start time
+timer_t timer_gettimestamp() {
+    return TIMER64P0.TIM34;
+}
+
+// returns timer start time
 timer_t timer_init(timer_t period) {
-	last_timerexpiry = TIMER64P0.TIM34;
+	last_timerexpiry = timer_gettimestamp();
 	timer_period = period;
 	return last_timerexpiry;
 }
 
 bool timer_hasexpired(timer_t *currtime) {
-	*currtime = TIMER64P0.TIM34;
+	*currtime = timer_gettimestamp();
+
+	/* TIMER64P0.TIM34 is configured by Linux as a free run counter so we
+	 * can use it here to keep track of time. This timer runs off of the
+	 * external oscillator, so it runs at 24MHz (each count is 41.67ns).
+	 * Since it counts up to the full unsigned 32-bit value, we can
+	 * subtract without worrying about if the value wrapped around.
+	 */
 	if (*currtime - last_timerexpiry >= timer_period) {
 		last_timerexpiry += timer_period;		// advance timer expiry timestamp
 		return true;
@@ -91,6 +102,7 @@ bool timer_hasexpired(timer_t *currtime) {
 		return false;
 }
 
+/* public functions */
 int main(void) {
 
 #ifdef ENABLE_LEDDEBUG
@@ -99,34 +111,48 @@ int main(void) {
 #endif
 
     encodervec_t oldevent = 0;
+    encodervec_t newevent = 0;
+
     timer_t currtime;
 
+    // Debug info
+    output_port       motor_port;
+    encoder_direction motor_direction;
+    encoder_direction motor_olddirection;
+    encoder_count_t   motor_count;
+    encoder_count_t   motor_oldcount;
+
+    // history buffer variables
+    event_index_t index = 0;
 
     // Initialize tacho-encoder
     // Setup all ports for capture
     tachoencoder_init(RINGBUF_MAXITEMS, outA, outB, outC, outD);
 
-    LEDDEBUG(MOTOR1, FORWARD);               // Force Left and Right to alternate in the loop
+    //LEDDEBUG(MOTOR1, FORWARD);               // Force Left and Right to alternate in the loop
 
     timer_init(TIMER_PERIOD);
 
-    /* blink the left green LED on the EV3 */
     while (true) {
 
-        LEDDEBUG(MOTOR0, REVERSE);
-        LEDDEBUG(MOTOR1, FORWARD);
+        if (tachoencoder_hasnewevent(&newevent)) {
+            currtime = timer_gettimestamp();
+#if 0
+            tachoencoder_updateencoderstate(newevent, currtime);        // Actual event timestamp
+#endif
+            motor_port = tachoencoder_getdircount(MOTOR0, &motor_direction, &motor_count);
+            if (motor_port == outA) {       // Sanity check
+                if ((motor_direction != motor_olddirection) || (motor_count != motor_oldcount))
+                    LEDDEBUG(MOTOR0, motor_direction);               // Toggle LED state
+            }
+        }
 
-        /* TIMER64P0.TIM34 is configured by Linux as a free run counter so we
-         * can use it here to keep track of time. This timer runs off of the
-         * external oscillator, so it runs at 24MHz (each count is 41.67ns).
-         * Since it counts up to the full unsigned 32-bit value, we can
-         * subtract without worrying about if the value wrapped around.
-         */
-        while (!timer_hasexpired(&currtime));
+        if (timer_hasexpired(&currtime)) {
+            tachoencoder_updateteventbuffer(index, currtime);
+            index += 1;
+            if (index >= RINGBUF_MAXITEMS)
+                index = 0;
 
-        LEDDEBUG(MOTOR0, REVERSE);
-        LEDDEBUG(MOTOR1, FORWARD);
-
-        while (!timer_hasexpired(&currtime));
+        }
     }
 }
