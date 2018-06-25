@@ -118,27 +118,7 @@ void leddebug_update(motor_identifier motor, encoder_direction dir) {
         ledstateptr->debug_count++;                           // Debug count will always increment regardless of direction
 
         // Update led state
-#if 0
-        switch (dir) {
-        case FORWARD:
-            ledstate[motor].red_state = false;
-            if ((ledstate[motor].debug_count % ledstate[motor].flashing_interval) == 0)
-                ledstate[motor].green_state = (ledstate[motor].green_state ? false : true);
-            break;
-        case REVERSE:
-            ledstate[motor].green_state = false;
-            if ((ledstate[motor].debug_count % ledstate[motor].flashing_interval) == 0)
-                ledstate[motor].red_state = (ledstate[motor].red_state ? false : true);
-            break;
-        default:
-            ledstate[motor].green_state = true;
-            ledstate[motor].red_state = true;
-            break;
-        }
-#endif
-
         if ((ledstateptr->debug_count % ledstateptr->flashing_interval) == 0) {
-            // program the LED control GPIOs
             ledstateptr->led_enabled = (ledstateptr->led_enabled ? false : true);   // Toggle LED state
         }
         leddebug_setleds();
