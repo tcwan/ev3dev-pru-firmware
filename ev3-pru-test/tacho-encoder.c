@@ -39,6 +39,7 @@
  */
 
 #include <string.h>
+#include <stdbool.h>
 #include "tacho-encoder.h"
 
 static encoder_struct encoder_config[MAX_TACHO_MOTORS];
@@ -49,13 +50,25 @@ static encodervec_t active_encoders;
 static encodervec_t lasteventvec;
 
 /* Private utility functions */
-void _clear_encoder_config(motor_identifier motor) {
+void _set_semaphore() {
+    // Set semaphore
+    encoder_history_config->updating = true;
+}
+
+void _release_semaphore() {
+    // Release semaphore
+    encoder_history_config->updating = false;
+}
+
+encoder_struct *_reset_encoder_config(motor_identifier motor, bool reset_count) {
     encoder_struct *encoder_configptr = &(encoder_config[motor]);
 
     encoder_configptr->dir = UNKNOWN;
-    encoder_configptr->count = 0;
     encoder_configptr->state = ENC_IDLE;
+    if (reset_count)
+        encoder_configptr->count = 0;
 
+    return encoder_configptr;               // Reduce array address conversion overhead
 }
 
 encodervec_t _port_to_encodermask(output_port port) {
@@ -278,8 +291,7 @@ output_port tachoencoder_getdircount(motor_identifier motor, encoder_direction *
 /* Public Routines */
 void tachoencoder_init(event_index_t maxitems, output_port motor0_port, output_port motor1_port, output_port motor2_port, output_port motor3_port) {
 
-	// Set semaphore
-	encoder_history_config->updating = true;
+    _set_semaphore();
 
 	// Initialize History Configuration
 	encoder_history_config->ringbuf_maxitems = maxitems;
@@ -299,7 +311,7 @@ void tachoencoder_init(event_index_t maxitems, output_port motor0_port, output_p
 	for (i = 0; i < MAX_TACHO_MOTORS; i++) {
 		// Initialize local state
 		// encoder_config[i].port = PORT_UNUSED;			// Assumes that the port initialization step below configures all motors
-		_clear_encoder_config((motor_identifier) i);
+		_reset_encoder_config((motor_identifier) i, true);
 
 		encoder_history_config->raw_speed[i] = 0;			// Clear raw_speed variable for history buffer
 	}
@@ -324,35 +336,35 @@ void tachoencoder_init(event_index_t maxitems, output_port motor0_port, output_p
 	encoder_config[MOTOR3].port = valid_port;
 	active_encoders |= _port_to_encodermask(valid_port);
 
-	// Release semaphore
-	encoder_history_config->updating = false;
+    _release_semaphore();
 }
 
 void tachoencoder_activatemotor(motor_identifier motor, output_port port) {
 	if (((unsigned) motor < MAX_TACHO_MOTORS) && ((unsigned) port < MAX_PORTS)){
 
+        encoder_struct *encoder_configptr;
 		active_encoders |= _port_to_encodermask(port);				// Enable active motor in Bitmask
 
-		encoder_config[motor].port = port;
-		_clear_encoder_config(motor);
+		encoder_configptr = _reset_encoder_config(motor, true);
+        encoder_configptr->port = port;
 	}
 }
 
 void tachoencoder_deactivatemotor(motor_identifier motor) {
 	if ((unsigned) motor < MAX_TACHO_MOTORS) {
-		output_port oldport;
 
-		oldport = encoder_config[motor].port;
+	    encoder_struct *encoder_configptr;
+	    output_port oldport;
+
+        encoder_configptr = _reset_encoder_config(motor, true);
+		oldport = encoder_configptr->port;
 		active_encoders &= ~(_port_to_encodermask(oldport));			// Disable inactive motor in Bitmask
-
-		encoder_config[motor].port = PORT_UNUSED;
-		_clear_encoder_config(motor);
+		encoder_configptr->port = PORT_UNUSED;
 	}
 }
 
 void tachoencoder_reset() {
-	// Set semaphore
-	encoder_history_config->updating = true;
+    _set_semaphore();
 
 	// Reset last event vector
 	lasteventvec = EVENTVEC_RESETMASK;
@@ -363,11 +375,10 @@ void tachoencoder_reset() {
 	int i;
 	for (i = 0; i < MAX_TACHO_MOTORS; i++) {
 
-	    encoder_struct *encoder_configptr = &(encoder_config[i]);
+        encoder_struct *encoder_configptr;
 
-		// Reset encoder state
-	    encoder_configptr->dir = UNKNOWN;
-	    encoder_configptr->state = ENC_IDLE;
+        // Reset encoder state
+	    encoder_configptr = _reset_encoder_config((motor_identifier) i, false);
 
 		// initialize event history buffer with last count for each motor
 		latestevent.count[i] = encoder_configptr->count;
@@ -376,8 +387,7 @@ void tachoencoder_reset() {
 	for (i = 0; i < encoder_history_config->ringbuf_maxitems; i++) {
 		memcpy((void *)&(encoder_event_buffer[i]), &latestevent, sizeof(encoder_event_struct));
 	}
-	// Release semaphore
-	encoder_history_config->updating = false;
+    _release_semaphore();
 
 }
 
@@ -417,8 +427,7 @@ void tachoencoder_updateteventbuffer(event_index_t index, timer_t timestamp) {
 	volatile encoder_event_struct *itemptr;		// pointer to event item
 	int i;
 
-	// Set semaphore
-	encoder_history_config->updating = true;
+	_set_semaphore();
 
 	// Point to old event data at index
 	itemptr = &(encoder_event_buffer[index]);
@@ -447,7 +456,6 @@ void tachoencoder_updateteventbuffer(event_index_t index, timer_t timestamp) {
 	encoder_history_config->lastevent_index = index;
 	encoder_history_config->lastevent_time = timestamp;
 
-	// Release semaphore
-	encoder_history_config->updating = false;
+	_release_semaphore();
 }
 
