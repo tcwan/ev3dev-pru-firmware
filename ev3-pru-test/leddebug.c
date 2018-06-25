@@ -37,7 +37,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-
+#include <stdbool.h>
 #include "leddebug.h"
 
 static leddebug_state ledstate[MAX_TACHO_MOTORS];
@@ -45,27 +45,52 @@ static motor_identifier display_motor[MAX_LEDS];
 
 /* Internal Routines */
 void leddebug_setleds() {
-    // program the LED control GPIOs
-	if ((unsigned) display_motor[LEFT] < MAX_TACHO_MOTORS) {
-		LEFT_GREEN  = (ledstate[display_motor[LEFT]].green_state ? 1 : 0);
-		LEFT_RED    = (ledstate[display_motor[LEFT]].red_state ? 1 : 0);
-	}
-	if ((unsigned) display_motor[RIGHT] < MAX_TACHO_MOTORS) {
-		RIGHT_GREEN = (ledstate[display_motor[RIGHT]].green_state ? 1 : 0);
-		RIGHT_RED   = (ledstate[display_motor[RIGHT]].red_state ? 1 : 0);
-	}
+
+    motor_identifier    motor;
+    bool                led_enabled = false;
+    encoder_direction   dir = UNKNOWN;
+
+    motor = display_motor[LEFT];
+
+    if ((unsigned) motor < MAX_TACHO_MOTORS) {
+        leddebug_state *ledstateptr = &(ledstate[motor]);
+
+        led_enabled = ledstateptr->led_enabled;
+        dir = ledstateptr->dir;
+
+        // program the LED control GPIOs
+        LEFT_GREEN = ((led_enabled && ((dir == FORWARD) || (dir == UNKNOWN))) ? 1 : 0);
+        LEFT_RED = ((led_enabled && ((dir == REVERSE) || (dir == UNKNOWN))) ? 1 : 0);
+    }
+
+    motor = display_motor[RIGHT];
+
+    if ((unsigned) motor < MAX_TACHO_MOTORS) {
+        leddebug_state *ledstateptr = &(ledstate[motor]);
+
+        led_enabled = ledstateptr->led_enabled;
+        dir = ledstateptr->dir;
+
+        // program the LED control GPIOs
+        RIGHT_GREEN = ((led_enabled && ((dir == FORWARD) || (dir == UNKNOWN))) ? 1 : 0);
+        RIGHT_RED = ((led_enabled && ((dir == REVERSE) || (dir == UNKNOWN))) ? 1 : 0);
+    }
+
 }
 
 /* Public Routines */
 void leddebug_init(debug_count_t flashing_interval) {
 
     int i;
+    leddebug_state *ledstateptr;
+
     for (i = 0; i < MAX_TACHO_MOTORS; i++) {
-        ledstate[i].dir = UNKNOWN;
-        ledstate[i].debug_count = 0;
-        ledstate[i].flashing_interval = flashing_interval;
-        ledstate[i].green_state = false;
-        ledstate[i].red_state = false;
+        ledstateptr = &(ledstate[i]);
+
+        ledstateptr->led_enabled = false;
+        ledstateptr->dir = UNKNOWN;
+        ledstateptr->debug_count = 0;
+        ledstateptr->flashing_interval = flashing_interval;
     }
     display_motor[LEFT] = display_motor[RIGHT] = MOTOR_UNUSED;
 }
@@ -80,19 +105,20 @@ void leddebug_assignmotors(motor_identifier left, motor_identifier right) {
 void leddebug_update(motor_identifier motor, encoder_direction dir) {
 
 	if ((unsigned) motor < MAX_TACHO_MOTORS) {
+	    leddebug_state *ledstateptr = &(ledstate[motor]);
 
-        if (ledstate[motor].dir != dir) {
+        if (ledstateptr->dir != dir) {
             // Reset counters
-            ledstate[motor].debug_count = 0;
-            ledstate[motor].green_state = false;
-            ledstate[motor].red_state = false;
+            ledstateptr->debug_count = 0;
+            ledstateptr->led_enabled = false;
         }
 
         // Update counts
-        ledstate[motor].dir = dir;
-        ledstate[motor].debug_count++;                           // Debug count will always increment regardless of direction
+        ledstateptr->dir = dir;
+        ledstateptr->debug_count++;                           // Debug count will always increment regardless of direction
 
         // Update led state
+#if 0
         switch (dir) {
         case FORWARD:
             ledstate[motor].red_state = false;
@@ -109,8 +135,12 @@ void leddebug_update(motor_identifier motor, encoder_direction dir) {
             ledstate[motor].red_state = true;
             break;
         }
+#endif
 
-        // program the LED control GPIOs
+        if ((ledstateptr->debug_count % ledstateptr->flashing_interval) == 0) {
+            // program the LED control GPIOs
+            ledstateptr->led_enabled = (ledstateptr->led_enabled ? false : true);   // Toggle LED state
+        }
         leddebug_setleds();
     }
 }

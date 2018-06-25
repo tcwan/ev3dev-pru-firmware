@@ -79,11 +79,10 @@ typedef enum led_identifier_t {
 } led_identifier;
 
 typedef struct {
+    bool                led_enabled;
     encoder_direction   dir;
     debug_count_t       debug_count;
     debug_count_t       flashing_interval;
-    bool                green_state;
-    bool                red_state;
 } leddebug_state;
 
 /** leddebug_setleds
