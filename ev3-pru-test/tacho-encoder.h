@@ -105,8 +105,8 @@ typedef uint8_t  encodervec_t;
 typedef enum encoder_value_t {
 	ENC_00 = 0x00, 												// Encoder position and State
 	ENC_01 = 0x01, 												// Encoder position and State
-	ENC_11 = 0x11, 												// Encoder position and State
-	ENC_10 = 0x10, 												// Encoder position and State
+	ENC_11 = 0x03, 												// Encoder position and State
+	ENC_10 = 0x02, 												// Encoder position and State
 	ENC_IDLE = 0xFF												// Encoder State
 } encoder_value;
 
