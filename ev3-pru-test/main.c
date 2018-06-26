@@ -116,7 +116,6 @@ int main(void) {
     timer_t currtime;
 
     // Debug info
-    output_port       motor_port;
     encoder_direction motor_direction;
     encoder_direction motor_olddirection;
     encoder_count_t   motor_count;
@@ -127,7 +126,7 @@ int main(void) {
 
     // Initialize tacho-encoder
     // Setup all ports for capture
-    tachoencoder_init(RINGBUF_MAXITEMS, outA, outB, outC, outD);
+    tachoencoder_init(RINGBUF_MAXITEMS);
 
     //LEDDEBUG(MOTOR1, FORWARD);               // Force Left and Right to alternate in the loop
 
@@ -137,14 +136,10 @@ int main(void) {
 
         if (tachoencoder_hasnewevent(&newevent)) {
             currtime = timer_gettimestamp();
-#if 0
             tachoencoder_updateencoderstate(newevent, currtime);        // Actual event timestamp
-#endif
-            motor_port = tachoencoder_getdircount(MOTOR0, &motor_direction, &motor_count);
-            if (motor_port == outA) {       // Sanity check
-                if ((motor_direction != motor_olddirection) || (motor_count != motor_oldcount))
-                    LEDDEBUG(MOTOR0, motor_direction);               // Toggle LED state
-            }
+            motor_direction = tachoencoder_getdircount(MOTOR0, &motor_count);
+            if ((motor_direction != motor_olddirection) || (motor_count != motor_oldcount))
+                LEDDEBUG(MOTOR0, motor_direction);               // Toggle LED state
         }
 
         if (timer_hasexpired(&currtime)) {

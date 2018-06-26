@@ -42,12 +42,11 @@
 #include <stdbool.h>
 #include "tacho-encoder.h"
 
+static encodervec_t lasteventvec;
 static encoder_struct encoder_config[MAX_TACHO_MOTORS];
 
 static volatile encoder_history_struct *encoder_history_config = ON_CHIP_RAM_START;
 static volatile encoder_event_struct *encoder_event_buffer = EVENT_RINGBUF_START;
-static encodervec_t active_encoders;
-static encodervec_t lasteventvec;
 
 /* Private utility functions */
 void _set_semaphore() {
@@ -71,70 +70,49 @@ encoder_struct *_reset_encoder_config(motor_identifier motor, bool reset_count) 
     return encoder_configptr;               // Reduce array address conversion overhead
 }
 
-encodervec_t _port_to_encodermask(output_port port) {
-	switch (port) {
-	case outA:
-		return ENCODER_PORTAVEC_MASK;
-		// break;
-	case outB:
-		return ENCODER_PORTBVEC_MASK;
-		// break;
-	case outC:
-		return ENCODER_PORTCVEC_MASK;
-		// break;
-	case outD:
-		return ENCODER_PORTDVEC_MASK;
-		// break;
-	case PORT_UNUSED:
-	default:
-		return 0;
-		// break;
-	}
-}
-
 /* Internal Routines */
-encoder_value tachoencoder_extractportevent(output_port port, encodervec_t event) {
+encoder_value tachoencoder_extractmotorevent(motor_identifier motor, encodervec_t event) {
 
-	// This routine is used to convert the event vector obtained by tachoencoder_readallports()
-	// to an event for a specific port
+	// This routine is used to convert the event vector obtained by tachoencoder_readallmotors()
+	// to an event for a specific motor
 	//
 
+    encoder_value motorevent = ENC_00;                           // Arbitrary return value
+
 # if 0
-	switch (port) {
-	case outA:
-		portevent = (encoder_value) ((event & ENCODER_PORTAVEC_MASK) >> ENCODER_PORTAVEC_SHIFT);
+
+    switch (motor) {
+	case MOTOR0:
+	    motorevent = (encoder_value) ((event & ENCODER_MOTOR0VEC_MASK) >> ENCODER_MOTOR0VEC_SHIFT);
 		break;
-	case outB:
-		portevent = (encoder_value) ((event & ENCODER_PORTBVEC_MASK) >> ENCODER_PORTBVEC_SHIFT);
+	case MOTOR1:
+	    motorevent = (encoder_value) ((event & ENCODER_MOTOR1VEC_MASK) >> ENCODER_MOTOR1VEC_SHIFT);
 		break;
-	case outC:
-		portevent = (encoder_value) ((event & ENCODER_PORTCVEC_MASK) >> ENCODER_PORTCVEC_SHIFT);
+	case MOTOR2:
+	    motorevent = (encoder_value) ((event & ENCODER_MOTOR2VEC_MASK) >> ENCODER_MOTOR2VEC_SHIFT);
 		break;
-	case outD:
-		portevent = (encoder_value) ((event & ENCODER_PORTDVEC_MASK) >> ENCODER_PORTDVEC_SHIFT);
+	case MOTOR3:
+	    motorevent = (encoder_value) ((event & ENCODER_MOTOR3VEC_MASK) >> ENCODER_MOTOR3VEC_SHIFT);
 		break;
-	case PORT_UNUSED:
 	default:
-		portevent = ENC_00;					// Arbitrary return value
+	    motorevent = ENC_00;					// Arbitrary return value
 		break;
 	}
-#endif
+#else
 
-    encoder_value portevent = ENC_00;                           // Arbitrary return value
-
-	if ((port != PORT_UNUSED) && (port < MAX_PORTS)) {
-        output_port i = outA;
-        while (i < port) {
+	    motor_identifier i = MOTOR0;
+        while (i < motor) {
             event = event >> ENCODERVEC_EVENT_SHIFT;
             i++;
         }
-        portevent = (encoder_value) (event & ENCODERVEC_EVENT_MASK);
-	}
-	return portevent;
+        motorevent = (encoder_value) (event & ENCODERVEC_EVENT_MASK);
+#endif
+
+	return motorevent;
 }
 
 #if 0
-encoder_value tachoencoder_readport(output_port port) {
+encoder_value tachoencoder_readmotor(motor_identifier motor) {
 
 	// This routine will read the encoder values from a single port.
 	// It is not expected to be used much since we are interested in motor synchronization
@@ -142,20 +120,19 @@ encoder_value tachoencoder_readport(output_port port) {
 
 	encoder_value input;
 
-	switch (port) {
-	case outA:
+	switch (motor) {
+	case MOTOR0:
 		input = (encoder_value) ((INTA0 ? ENCODER_INTX0_MASK : 0) | (DIRA ? ENCODER_DIRX_MASK : 0));
 		break;
-	case outB:
+	case MOTOR1:
 		input = (encoder_value) ((INTB0 ? ENCODER_INTX0_MASK : 0) | (DIRB ? ENCODER_DIRX_MASK : 0));
 		break;
-	case outC:
+	case MOTOR2:
 		input = (encoder_value) ((INTC0 ? ENCODER_INTX0_MASK : 0) | (DIRC ? ENCODER_DIRX_MASK : 0));
 		break;
-	case outD:
+	case MOTOR3:
 		input = (encoder_value) ((INTD0 ? ENCODER_INTX0_MASK : 0) | (DIRD ? ENCODER_DIRX_MASK : 0));
 		break;
-	case PORT_UNUSED:
 	default:
 		input = ENC_00;					// Arbitrary return value
 		break;
@@ -166,9 +143,9 @@ encoder_value tachoencoder_readport(output_port port) {
 #endif
 
 
-encodervec_t tachoencoder_readallports() {
-	// This routine is independent of tachoencoder_readport() for performance reasons
-	// It will get the inputs from all ports and return it as a single vector for encoder
+encodervec_t tachoencoder_readallmotors() {
+	// This routine is independent of tachoencoder_readmotor() for performance reasons
+	// It will get the inputs from all motors and return it as a single vector for encoder
 	// change detection in the main polling loop
 
 	encodervec_t allinputs;
@@ -181,7 +158,7 @@ encodervec_t tachoencoder_readallports() {
 	return allinputs;
 }
 
-void tachoencoder_updatmotorstate(motor_identifier motor, encoder_value encval) {
+encoder_direction tachoencoder_updatemotorstate(motor_identifier motor, encoder_value encval) {
 	// State machine for encoder processing
 	//
 	// [State Machine Diagram](State-Machine/Quadrature-Encoder-States-Simplified.eps)
@@ -195,9 +172,7 @@ void tachoencoder_updatmotorstate(motor_identifier motor, encoder_value encval) 
 	// encval must be one of (ENC_00, ENC_01, ENC_10, ENC_11) to be a valid input
 	// Otherwise we just ignore and return
 	if ((unsigned) encval > ENC_11)
-		return;
-
-
+		return UNKNOWN;
 
 	if ((unsigned) motor < MAX_TACHO_MOTORS) {
 	    encoder_struct *encoder_configptr = &(encoder_config[motor]);
@@ -206,7 +181,7 @@ void tachoencoder_updatmotorstate(motor_identifier motor, encoder_value encval) 
 
 		if (encval != currstate) {
 
-			switch (currstate) {
+		    switch (currstate) {
 				case ENC_00:
 					if (encval == ENC_01) {
 						newstate = ENC_01;
@@ -260,7 +235,7 @@ void tachoencoder_updatmotorstate(motor_identifier motor, encoder_value encval) 
 		if (newstate == ENC_IDLE) {
 			// Somehow we didn't get an expected transition
 		    encoder_configptr->state = ENC_IDLE;					// Goto Idle
-		    encoder_configptr->dir = UNKNOWN;					// Reset direction indicator,  but don't update event count
+		    newdir = encoder_configptr->dir = UNKNOWN;				// Reset direction indicator,  but don't update event count
 		} else if (newstate != currstate) {
 				// Update state and encoder count only if we have changed states
 		        encoder_configptr->state = newstate;
@@ -271,16 +246,17 @@ void tachoencoder_updatmotorstate(motor_identifier motor, encoder_value encval) 
 			// Do nothing
 		}
 	}
+
+	return newdir;
 }
 
-output_port tachoencoder_getdircount(motor_identifier motor, encoder_direction *dir, encoder_count_t *count) {
+encoder_direction tachoencoder_getdircount(motor_identifier motor, encoder_count_t *count) {
 
-	output_port retval = PORT_UNUSED;
+    encoder_direction retval = UNKNOWN;
 
 	if ((unsigned) motor < MAX_TACHO_MOTORS) {
 	    encoder_struct *encoder_configptr = &(encoder_config[motor]);
-		retval = encoder_configptr->port;
-		*dir = encoder_configptr->dir;
+	    retval = encoder_configptr->dir;
 		*count = encoder_configptr->count;
 	}
 	return retval;
@@ -289,8 +265,7 @@ output_port tachoencoder_getdircount(motor_identifier motor, encoder_direction *
 
 
 /* Public Routines */
-void tachoencoder_init(event_index_t maxitems, output_port motor0_port, output_port motor1_port, output_port motor2_port, output_port motor3_port) {
-
+void tachoencoder_init(event_index_t maxitems) {
 
 	// Initialize Encoder History struct and history buffer (assumed contiguous)
     memset((void *) encoder_history_config, 0, sizeof(encoder_history_struct) + sizeof(encoder_event_struct) * maxitems);
@@ -304,66 +279,19 @@ void tachoencoder_init(event_index_t maxitems, output_port motor0_port, output_p
 
 	// Initialize last event vector and active encoder bitmask
 	lasteventvec = EVENTVEC_RESETMASK;
-	active_encoders = 0;
 
 	// Initialize per-motor Encoder Settings
 	int i;
 	for (i = 0; i < MAX_TACHO_MOTORS; i++) {
-		// Initialize local state
-		// encoder_config[i].port = PORT_UNUSED;			// Assumes that the port initialization step below configures all motors
-		_reset_encoder_config((motor_identifier) i, true);
+		_reset_encoder_config((motor_identifier) i, true);          // Initialize local state
 
 #if 0
 		// already cleared by memset()
-		encoder_history_config->raw_speed[i] = 0;			// Clear raw_speed variable for history buffer
+		encoder_history_config->raw_speed[i] = 0;			        // Clear raw_speed variable for history buffer
 #endif
 	}
 
-	// Activate Encoders and update bitmask
-	// Assumes 4 motors only
-	output_port valid_port;
-
-	valid_port = ((unsigned) motor0_port < MAX_PORTS) ? motor0_port : PORT_UNUSED;
-	encoder_config[MOTOR0].port = valid_port;
-	active_encoders |= _port_to_encodermask(valid_port);
-
-	valid_port = ((unsigned) motor1_port < MAX_PORTS) ? motor1_port : PORT_UNUSED;
-	encoder_config[MOTOR1].port = valid_port;
-	active_encoders |= _port_to_encodermask(valid_port);
-
-	valid_port = ((unsigned) motor2_port < MAX_PORTS) ? motor2_port : PORT_UNUSED;
-	encoder_config[MOTOR2].port = valid_port;
-	active_encoders |= _port_to_encodermask(valid_port);
-
-	valid_port = ((unsigned) motor3_port < MAX_PORTS) ? motor3_port : PORT_UNUSED;
-	encoder_config[MOTOR3].port = valid_port;
-	active_encoders |= _port_to_encodermask(valid_port);
-
     _release_semaphore();
-}
-
-void tachoencoder_activatemotor(motor_identifier motor, output_port port) {
-	if (((unsigned) motor < MAX_TACHO_MOTORS) && ((unsigned) port < MAX_PORTS)){
-
-        encoder_struct *encoder_configptr;
-		active_encoders |= _port_to_encodermask(port);				// Enable active motor in Bitmask
-
-		encoder_configptr = _reset_encoder_config(motor, true);
-        encoder_configptr->port = port;
-	}
-}
-
-void tachoencoder_deactivatemotor(motor_identifier motor) {
-	if ((unsigned) motor < MAX_TACHO_MOTORS) {
-
-	    encoder_struct *encoder_configptr;
-	    output_port oldport;
-
-        encoder_configptr = _reset_encoder_config(motor, true);
-		oldport = encoder_configptr->port;
-		active_encoders &= ~(_port_to_encodermask(oldport));			// Disable inactive motor in Bitmask
-		encoder_configptr->port = PORT_UNUSED;
-	}
 }
 
 void tachoencoder_reset() {
@@ -396,8 +324,7 @@ void tachoencoder_reset() {
 
 
 bool tachoencoder_hasnewevent(encodervec_t *eventvec) {
-	*eventvec = tachoencoder_readallports();			// Get all input port encoder values (active or otherwise)
-	*eventvec &= active_encoders;						// Keep only active encoder values
+	*eventvec = tachoencoder_readallmotors();			// Get all input port encoder values (active or otherwise)
 	if (*eventvec != lasteventvec) {
 		// state change detected
 		lasteventvec = *eventvec;
@@ -412,14 +339,12 @@ void tachoencoder_updateencoderstate(encodervec_t neweventvec, timer_t timestamp
 
     // The timestamp is ignored for now since we're recording encoder counts at a fixed interval
 	int i;
-	encoder_value portevent;					// encoder value for port event
+	encoder_value motorevent;					// encoder value for port event
 
 	for (i = 0; i < MAX_TACHO_MOTORS; i++) {
-		if ((encoder_config[i].port != PORT_UNUSED) && (encoder_config[i].port < MAX_PORTS)) {
 
-			portevent = tachoencoder_extractportevent(encoder_config[i].port, neweventvec);
-			tachoencoder_updatemotorstate((motor_identifier) i, portevent);
-		}
+	    motorevent = tachoencoder_extractmotorevent((motor_identifier) i, neweventvec);
+        tachoencoder_updatemotorstate((motor_identifier) i, motorevent);
 	}
 
 }
@@ -438,21 +363,14 @@ void tachoencoder_updateteventbuffer(event_index_t index, timer_t timestamp) {
 	for (i = 0; i < MAX_TACHO_MOTORS; i++) {
 
         encoder_struct *encoder_configptr = &(encoder_config[i]);
-        output_port port = encoder_configptr->port;
         encoder_count_t new_count = encoder_configptr->count;
         volatile encoder_count_t *buffer_index_countptr = &(itemptr->count[i]);
         volatile encoder_count_t *raw_speedptr = &(encoder_history_config->raw_speed[i]);
 
-		if ((port != PORT_UNUSED) && (port < MAX_PORTS)) {
-			// Calculate raw speed = (new count - old count) [per event buffer window interval]
-			*raw_speedptr = new_count - *buffer_index_countptr;
-			// Store new event into buffer
-			*buffer_index_countptr = new_count;
-		} else {
-		    *raw_speedptr = 0;
-			*buffer_index_countptr = 0;
-
-		}
+        // Calculate raw speed = (new count - old count) [per event buffer window interval]
+        *raw_speedptr = new_count - *buffer_index_countptr;
+        // Store new event into buffer
+        *buffer_index_countptr = new_count;
 	}
 
 	// Update timestamps, etc. in encoder_history_config

@@ -68,14 +68,14 @@
 #define  DIRC GPIO.IN_DATA23_bit.GP3P14     // GPIO 3[14]
 #define  DIRD GPIO.IN_DATA23_bit.GP2P8      // GPIO 2[8]
 
-/* Used by tachoencoder_readallports() encoder_value */
+/* Used by tachoencoder_readallmotors() encoder_value */
 #define ENCODER_INTX0_MASK 0x02				// Bitmask for INTx0 setting
 #define ENCODER_DIRX_MASK  0x01				// Bitmask for DIRx setting
 
 #define ENCODERVEC_EVENT_SHIFT 2
 #define ENCODERVEC_EVENT_MASK  (ENCODER_INTX0_MASK | ENCODER_DIRX_MASK)
 
-/* Used by tachoencoder_readallports() encodervec_t */
+/* Used by tachoencoder_readallmotors() encodervec_t */
 #define ENCODER_INTD0_MASK 0x80				// Bitmask for INTD0 setting
 #define ENCODER_DIRD_MASK  0x40				// Bitmask for DIRD setting
 #define ENCODER_INTC0_MASK 0x20				// Bitmask for INTC0 setting
@@ -85,16 +85,16 @@
 #define ENCODER_INTA0_MASK 0x02				// Bitmask for INTA0 setting
 #define ENCODER_DIRA_MASK  0x01				// Bitmask for DIRA setting
 
-#define ENCODER_PORTAVEC_MASK (encodervec_t) (ENCODER_INTA0_MASK | ENCODER_DIRA_MASK)
-#define ENCODER_PORTBVEC_MASK (encodervec_t) (ENCODER_INTB0_MASK | ENCODER_DIRB_MASK)
-#define ENCODER_PORTCVEC_MASK (encodervec_t) (ENCODER_INTC0_MASK | ENCODER_DIRC_MASK)
-#define ENCODER_PORTDVEC_MASK (encodervec_t) (ENCODER_INTD0_MASK | ENCODER_DIRD_MASK)
+#define ENCODER_MOTOR0VEC_MASK (encodervec_t) (ENCODER_INTA0_MASK | ENCODER_DIRA_MASK)
+#define ENCODER_MOTOR1VEC_MASK (encodervec_t) (ENCODER_INTB0_MASK | ENCODER_DIRB_MASK)
+#define ENCODER_MOTOR2VEC_MASK (encodervec_t) (ENCODER_INTC0_MASK | ENCODER_DIRC_MASK)
+#define ENCODER_MOTOR3VEC_MASK (encodervec_t) (ENCODER_INTD0_MASK | ENCODER_DIRD_MASK)
 
 #if 0
-#define ENCODER_PORTAVEC_SHIFT (encodervec_t) 0
-#define ENCODER_PORTBVEC_SHIFT (encodervec_t) 2
-#define ENCODER_PORTCVEC_SHIFT (encodervec_t) 4
-#define ENCODER_PORTDVEC_SHIFT (encodervec_t) 6
+#define ENCODER_MOTOR0VEC_SHIFT (encodervec_t) 0
+#define ENCODER_MOTOR1VEC_SHIFT (encodervec_t) 2
+#define ENCODER_MOTOR2VEC_SHIFT (encodervec_t) 4
+#define ENCODER_MOTOR3VEC_SHIFT (encodervec_t) 6
 #endif
 
 typedef long encoder_count_t;
@@ -111,10 +111,6 @@ typedef enum encoder_value_t {
 
 #define EVENTVEC_RESETMASK 0x00
 
-typedef enum output_port_t {
-	PORT_UNUSED = 0, outA, outB, outC, outD, MAX_PORTS			// MAX_PORTS used for sanity checks
-} output_port;
-
 typedef enum motor_identifier_t {
     MOTOR0 = 0, MOTOR1, MOTOR2, MOTOR3, MAX_TACHO_MOTORS      	// MAX_TACHO_MOTORS used to count number of motors
 } motor_identifier;
@@ -128,7 +124,6 @@ typedef enum encoder_direction_t {
 } encoder_direction;
 
 typedef struct {
-    output_port         port;
     encoder_direction   dir;
     encoder_value		state;
     encoder_count_t     count;
@@ -163,44 +158,44 @@ typedef struct {
 #define EVENT_RINGBUF_START  (volatile encoder_event_struct *) ((ON_CHIP_RAM_START + sizeof(encoder_event_struct)))
 #define RINGBUF_MAXITEMS ((ON_CHIP_RAM_SIZE - sizeof(encoder_history_struct)) / (MAX_TACHO_MOTORS * sizeof(encoder_event_struct)))
 
-/** tachoencoder_extractportevent
+/** tachoencoder_extractmotorevent
  *
  * Internal routine
  *
- * Retrieve the encoder value for the given port from the encoder event vector
+ * Retrieve the encoder value for the given motor from the encoder event vector
  *
- * @param  port: output_port
+ * @param motor: motor_identifier
  * @param  event: encodervec_t
  * @return encoder_value
  *
  */
-encoder_value tachoencoder_extractportevent(output_port port, encodervec_t event);
+encoder_value tachoencoder_extractmotorevent(motor_identifier motor, encodervec_t event);
 
 #if 0
-/** tachoencoder_readport
+/** tachoencoder_readmotor
  *
  * Internal routine
  *
- * Retrieve the encoder value from the given port
+ * Retrieve the encoder value from the given motor
  *
- * @param  port: output_port
+ * @param motor: motor_identifier
  * @return encoder_value
  *
  */
-encoder_value tachoencoder_readport(output_port port);
+encoder_value tachoencoder_readmotor(motor_identifier motor);
 #endif
 
-/** tachoencoder_readallports
+/** tachoencoder_readallmotors
  *
  * Internal routine
  *
- * Retrieve the event vector (encoder values from all output port), regardless of whether they are active or not
+ * Retrieve the event vector (encoder values from all motors)
  *
  * @param  None
  * @return event vector: encodervec_t
  *
  */
-encodervec_t tachoencoder_readallports();
+encodervec_t tachoencoder_readallmotors();
 
 /** tachoencoder_updatemotorstate
  *
@@ -211,10 +206,10 @@ encodervec_t tachoencoder_readallports();
  * @param motor: motor_identifier
  * @param encval: encoder_value
  *
- * @return None
+ * @return dir: encoder_direction
  *
  */
-void tachoencoder_updatemotorstate(motor_identifier motor, encoder_value encval);
+encoder_direction tachoencoder_updatemotorstate(motor_identifier motor, encoder_value encval);
 
 /** tachoencoder_getdircount
  *
@@ -223,13 +218,12 @@ void tachoencoder_updatemotorstate(motor_identifier motor, encoder_value encval)
  * Retrieves tacho encoder direction and count for given motor
  *
  * @param motor: motor_identifier
- * @param dir: encoder_direction
- * @param count: encoder_count_t
+ * @param count: encoder_count_t [Output]
  *
- * @return Output Port (0: unused, non-zero: port number)
+ * @return dir: encoder_direction
  *
  */
-output_port tachoencoder_getdircount(motor_identifier motor, encoder_direction *dir, encoder_count_t *count);
+encoder_direction tachoencoder_getdircount(motor_identifier motor, encoder_count_t *count);
 
 /** tachoencoder_init
  *
@@ -238,38 +232,11 @@ output_port tachoencoder_getdircount(motor_identifier motor, encoder_direction *
  * All motor encoder counts are zeroed
  *
  * @param maxitems: event_index_t, maximum number of items in ring buffer
- * @param motor0_port, motor1_port, motor2_port, motor3_port: output_port
- *
- * Unused motors should pass PORT_UNUSED as parameter
- * Note: The routine doesn't prevent duplicate port ids
  *
  * @return None
  *
  */
-void tachoencoder_init(event_index_t maxitems, output_port motor0_port, output_port motor1_port, output_port motor2_port, output_port motor3_port);
-
-/** tachoencoder_activatemotor
- *
- * Activate motor encoder tracking for the given motor attached to the given port
- *
- * @param motor: motor_identifier
- * @param  port: output_port
- * @return None
- *
- * Note: The routine doesn't prevent duplicate port ids
- *
- */
-void tachoencoder_activatemotor(motor_identifier motor, output_port port);
-
-/** tachoencoder_deactivatemotor
- *
- * Deactivate motor encoder tracking for the given port
- *
- * @param motor: motor_identifier
- * @return None
- *
- */
-void tachoencoder_deactivatemotor(motor_identifier motor);
+void tachoencoder_init(event_index_t maxitems);
 
 /** tachoencoder_reset
  *
