@@ -85,12 +85,13 @@
 #define ENCODER_INTA0_MASK 0x02				// Bitmask for INTA0 setting
 #define ENCODER_DIRA_MASK  0x01				// Bitmask for DIRA setting
 
+#if 0
+// Used by tachoencoder_readmotor()
 #define ENCODER_MOTOR0VEC_MASK (encodervec_t) (ENCODER_INTA0_MASK | ENCODER_DIRA_MASK)
 #define ENCODER_MOTOR1VEC_MASK (encodervec_t) (ENCODER_INTB0_MASK | ENCODER_DIRB_MASK)
 #define ENCODER_MOTOR2VEC_MASK (encodervec_t) (ENCODER_INTC0_MASK | ENCODER_DIRC_MASK)
 #define ENCODER_MOTOR3VEC_MASK (encodervec_t) (ENCODER_INTD0_MASK | ENCODER_DIRD_MASK)
 
-#if 0
 #define ENCODER_MOTOR0VEC_SHIFT (encodervec_t) 0
 #define ENCODER_MOTOR1VEC_SHIFT (encodervec_t) 2
 #define ENCODER_MOTOR2VEC_SHIFT (encodervec_t) 4
