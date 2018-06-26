@@ -100,12 +100,8 @@ encoder_value tachoencoder_extractmotorevent(motor_identifier motor, encodervec_
 	}
 #else
 
-	    motor_identifier i = MOTOR0;
-        while (i < motor) {
-            event = event >> ENCODERVEC_EVENT_SHIFT;
-            i++;
-        }
-        motorevent = (encoder_value) (event & ENCODERVEC_EVENT_MASK);
+    motorevent = (encoder_value) ((event >> (ENCODERVEC_EVENT_SHIFT * motor)) & ENCODERVEC_EVENT_MASK);
+
 #endif
 
 	return motorevent;
