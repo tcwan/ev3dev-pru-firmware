@@ -106,20 +106,25 @@ bool timer_hasexpired(timer_t *currtime) {
 int main(void) {
 
 #ifdef ENABLE_LEDDEBUG
+
+#define LEFTMOTOR MOTOR1
+#define RIGHTMOTOR MOTOR2
+
     leddebug_init(FLASHING_INTERVAL);
-    leddebug_assignmotors(MOTOR0, MOTOR1);
+    leddebug_assignmotors(LEFTMOTOR, RIGHTMOTOR);
 #endif
 
-    encodervec_t oldevent = 0;
     encodervec_t newevent = 0;
 
     timer_t currtime;
 
     // Debug info
     encoder_direction motor_direction;
-    encoder_direction motor_olddirection;
+    encoder_direction motor_olddirectionleft = UNKNOWN;
+    encoder_direction motor_olddirectionright = UNKNOWN;
     encoder_count_t   motor_count;
-    encoder_count_t   motor_oldcount;
+    encoder_count_t   motor_oldcountleft = 0;
+    encoder_count_t   motor_oldcountright = 0;
 
     // history buffer variables
     event_index_t index = 0;
@@ -137,9 +142,20 @@ int main(void) {
         if (tachoencoder_hasnewevent(&newevent)) {
             currtime = timer_gettimestamp();
             tachoencoder_updateencoderstate(newevent, currtime);        // Actual event timestamp
-            motor_direction = tachoencoder_getdircount(MOTOR0, &motor_count);
-            if ((motor_direction != motor_olddirection) || (motor_count != motor_oldcount))
-                LEDDEBUG(MOTOR0, motor_direction);               // Toggle LED state
+            motor_direction = tachoencoder_getdircount(LEFTMOTOR, &motor_count);
+
+            if ((motor_direction != motor_olddirectionleft) || (motor_count != motor_oldcountleft)) {
+                LEDDEBUG(LEFTMOTOR, motor_direction);               // Toggle LED state
+                motor_oldcountleft = motor_count;
+                motor_olddirectionleft = motor_direction;
+            }
+            motor_direction = tachoencoder_getdircount(RIGHTMOTOR, &motor_count);
+            if ((motor_direction != motor_olddirectionright) || (motor_count != motor_oldcountright)) {
+                LEDDEBUG(RIGHTMOTOR, motor_direction);               // Toggle LED state
+                motor_oldcountright = motor_count;
+                motor_olddirectionright = motor_direction;
+
+            }
         }
 
         if (timer_hasexpired(&currtime)) {
