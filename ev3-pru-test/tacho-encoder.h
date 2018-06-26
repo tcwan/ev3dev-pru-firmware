@@ -140,7 +140,7 @@ typedef struct {
 typedef long event_index_t;
 
 typedef struct {
-	bool			updating;							// Semaphore: TRUE if PRU is updating event history buffer (modified only by PRU)
+	bool			accessible;							// Semaphore: TRUE if event history buffer can be accessed by driver (modified only by PRU)
 	event_index_t	ringbuf_maxitems;					// Maximum number of items in ringbuf
 	event_index_t	lastevent_index;					// Index of most recently captured event
 	timer_t			lastevent_time;						// Timestamp of raw speed calculation (and last event update)
