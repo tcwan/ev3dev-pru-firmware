@@ -154,8 +154,8 @@ typedef struct {
 
 
 // FIXME: The On Chip RAM needs to  be shared with the PRU SUART buffers
-#define ON_CHIP_RAM_START ((volatile encoder_history_struct *)(0x80000000))
-#define ON_CHIP_RAM_SIZE  0x20000
+#define ON_CHIP_RAM_START ((volatile encoder_history_struct *)(0x80002000))
+#define ON_CHIP_RAM_SIZE  0x2000
 #define EVENT_RINGBUF_START  (volatile encoder_event_struct *) ((ON_CHIP_RAM_START + sizeof(encoder_event_struct)))
 #define RINGBUF_MAXITEMS ((ON_CHIP_RAM_SIZE - sizeof(encoder_history_struct)) / (MAX_TACHO_MOTORS * sizeof(encoder_event_struct)))
 
