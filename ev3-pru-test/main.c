@@ -137,9 +137,7 @@ int main(void) {
 
         if (tachoencoder_hasnewevent(&newevent)) {
             currtime = timer_gettimestamp();
-#if 0
             tachoencoder_updateencoderstate(newevent, currtime);        // Actual event timestamp
-#endif
             motor_port = tachoencoder_getdircount(MOTOR0, &motor_direction, &motor_count);
             if (motor_port == outA) {       // Sanity check
                 if ((motor_direction != motor_olddirection) || (motor_count != motor_oldcount))

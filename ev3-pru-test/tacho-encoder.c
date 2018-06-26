@@ -181,7 +181,7 @@ encodervec_t tachoencoder_readallports() {
 	return allinputs;
 }
 
-void tachoencoder_updatmotorstate(motor_identifier motor, encoder_value encval) {
+void tachoencoder_updatemotorstate(motor_identifier motor, encoder_value encval) {
 	// State machine for encoder processing
 	//
 	// [State Machine Diagram](State-Machine/Quadrature-Encoder-States-Simplified.eps)
