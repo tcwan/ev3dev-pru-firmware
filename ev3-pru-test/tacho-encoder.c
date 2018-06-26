@@ -148,7 +148,7 @@ encodervec_t tachoencoder_readallmotors() {
 	// It will get the inputs from all motors and return it as a single vector for encoder
 	// change detection in the main polling loop
 
-	encodervec_t allinputs;
+	volatile encodervec_t allinputs;
 
 	allinputs = (INTA0 ? ENCODER_INTA0_MASK : 0) | (DIRA ? ENCODER_DIRA_MASK : 0) | \
 				(INTB0 ? ENCODER_INTB0_MASK : 0) | (DIRB ? ENCODER_DIRB_MASK : 0) | \
@@ -185,40 +185,40 @@ encoder_direction tachoencoder_updatemotorstate(motor_identifier motor, encoder_
 				case ENC_00:
 					if (encval == ENC_01) {
 						newstate = ENC_01;
-						newdir = FORWARD;
+						newdir = REVERSE;
 					} else if (encval == ENC_10) {
 						newstate = ENC_10;
-						newdir = REVERSE;
+						newdir = FORWARD;
 					}
 					break;
 
 				case ENC_01:
 					if (encval == ENC_11) {
 						newstate = ENC_11;
-						newdir = FORWARD;
+						newdir = REVERSE;
 					} else if (encval == ENC_00) {
 						newstate = ENC_00;
-						newdir = REVERSE;
+						newdir = FORWARD;
 					}
 					break;
 
 				case ENC_11:
 					if (encval == ENC_10) {
 						newstate = ENC_10;
-						newdir = FORWARD;
+						newdir = REVERSE;
 					} else if (encval == ENC_01) {
 						newstate = ENC_01;
-						newdir = REVERSE;
+						newdir = FORWARD;
 					}
 					break;
 
 				case ENC_10:
 					if (encval == ENC_00) {
 						newstate = ENC_00;
-						newdir = FORWARD;
+						newdir = REVERSE;
 					} else if (encval == ENC_11) {
 						newstate = ENC_11;
-						newdir = REVERSE;
+						newdir = FORWARD;
 					}
 					break;
 
