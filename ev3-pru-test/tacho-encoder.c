@@ -351,10 +351,11 @@ void tachoencoder_updateteventbuffer(event_index_t index, timer_t timestamp) {
 	volatile encoder_event_struct *itemptr;		// pointer to event item
 	int i;
 
-	_set_semaphore();
 
 	// Point to old event data at index
 	itemptr = &(encoder_event_buffer[index]);
+
+	_set_semaphore();
 
 	for (i = 0; i < MAX_TACHO_MOTORS; i++) {
 
