@@ -149,15 +149,14 @@ int main(void) {
 
 	while (true) {
 
-	    if (started) {
-            if (tachoencoder_hasnewevent(&newevent)) {
-                currtime = timer_gettimestamp();
-                tachoencoder_updateencoderstate(newevent, currtime);        // Actual event timestamp
-            }
-	    }
-
 		// wait for the ARM to kick us
 		while (!(__R31 & HOST_INT)) {
+	        if (started) {
+	            if (tachoencoder_hasnewevent(&newevent)) {
+	                currtime = timer_gettimestamp();
+	                tachoencoder_updateencoderstate(newevent, currtime);        // Actual event timestamp
+	            }
+	        }
 
 	        if (timer_hasexpired(&currtime) && started) {
 					struct ev3_pru_tacho_msg msg;
