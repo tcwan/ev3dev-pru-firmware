@@ -16,21 +16,6 @@
 #include "resource_table.h"
 #include "tacho-encoder.h"
 
-// define to flash LEDs for debugging
-#undef ENABLE_LEDDEBUG
-
-#ifdef ENABLE_LEDDEBUG
-
-#include "leddebug.h"
-#define LEDDEBUG(motor, dir) leddebug_update(motor, dir)
-#define FLASHING_INTERVAL 1                     // Controls the LED toggling interval per leddebug() calls
-
-#else
-
-#define LEDDEBUG(side, dir)
-
-#endif
-
 #define TRIGGER_PERIOD_MS 10
 
 /* from Linux */
@@ -123,23 +108,6 @@ void _update_msgval(struct ev3_pru_tacho_msg *msg, timer_t timestamp) {
 
 int main(void) {
 
-#ifdef ENABLE_LEDDEBUG
-
-#define LEFTMOTOR MOTOR1
-#define RIGHTMOTOR MOTOR2
-
-    leddebug_init(FLASHING_INTERVAL);
-    leddebug_assignmotors(LEFTMOTOR, RIGHTMOTOR);
-
-    // Debug info
-    encoder_direction motor_direction;
-    encoder_direction motor_olddirectionleft = UNKNOWN;
-    encoder_direction motor_olddirectionright = UNKNOWN;
-    encoder_count_t   motor_count;
-    encoder_count_t   motor_oldcountleft = 0;
-    encoder_count_t   motor_oldcountright = 0;
-#endif
-
     // Tacho event detection
     encodervec_t newevent = 0;
 
@@ -173,7 +141,7 @@ int main(void) {
 	// Don't use tachometer_init() for now since we're not storing into the event history buffer
     // Initialize per-motor Encoder Settings
     for (i = 0; i < MAX_TACHO_MOTORS; i++) {
-        reset_encoder_config((motor_identifier) i, true);          // Initialize local state
+        tachoencoder_reset((motor_identifier) i, true);          // Initialize local state
     }
 
 	//start_time = TIMER64P0.TIM34;
@@ -185,21 +153,6 @@ int main(void) {
             if (tachoencoder_hasnewevent(&newevent)) {
                 currtime = timer_gettimestamp();
                 tachoencoder_updateencoderstate(newevent, currtime);        // Actual event timestamp
-#ifdef ENABLE_LEDDEBUG
-                motor_direction = tachoencoder_getdircount(LEFTMOTOR, &motor_count);
-
-                if ((motor_direction != motor_olddirectionleft) || (motor_count != motor_oldcountleft)) {
-                    LEDDEBUG(LEFTMOTOR, motor_direction);               // Toggle LED state
-                    motor_oldcountleft = motor_count;
-                    motor_olddirectionleft = motor_direction;
-                }
-                motor_direction = tachoencoder_getdircount(RIGHTMOTOR, &motor_count);
-                if ((motor_direction != motor_olddirectionright) || (motor_count != motor_oldcountright)) {
-                    LEDDEBUG(RIGHTMOTOR, motor_direction);               // Toggle LED state
-                    motor_oldcountright = motor_count;
-                    motor_olddirectionright = motor_direction;
-                }
-#endif
             }
 	    }
 
@@ -232,7 +185,7 @@ int main(void) {
 				trigger_src = dst;
 				trigger_dst = src;
 			    for (i = 0; i < MAX_TACHO_MOTORS; i++) {
-			        reset_encoder_config((motor_identifier) i, false);          // reset local state (encoder count is not cleared)
+			        tachoencoder_reset((motor_identifier) i, false);          // reset local state (encoder count is not cleared)
 			    }
 				break;
 			case EV3_PRU_TACHO_MSG_STOP:

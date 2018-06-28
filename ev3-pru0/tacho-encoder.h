@@ -85,18 +85,6 @@
 #define ENCODER_INTA0_MASK 0x02				// Bitmask for INTA0 setting
 #define ENCODER_DIRA_MASK  0x01				// Bitmask for DIRA setting
 
-#if 0
-// Used by tachoencoder_readmotor()
-#define ENCODER_MOTOR0VEC_MASK (encodervec_t) (ENCODER_INTA0_MASK | ENCODER_DIRA_MASK)
-#define ENCODER_MOTOR1VEC_MASK (encodervec_t) (ENCODER_INTB0_MASK | ENCODER_DIRB_MASK)
-#define ENCODER_MOTOR2VEC_MASK (encodervec_t) (ENCODER_INTC0_MASK | ENCODER_DIRC_MASK)
-#define ENCODER_MOTOR3VEC_MASK (encodervec_t) (ENCODER_INTD0_MASK | ENCODER_DIRD_MASK)
-
-#define ENCODER_MOTOR0VEC_SHIFT (encodervec_t) 0
-#define ENCODER_MOTOR1VEC_SHIFT (encodervec_t) 2
-#define ENCODER_MOTOR2VEC_SHIFT (encodervec_t) 4
-#define ENCODER_MOTOR3VEC_SHIFT (encodervec_t) 6
-#endif
 
 typedef uint32_t encoder_count_t;
 typedef uint32_t timer_t;
@@ -131,47 +119,6 @@ typedef struct {
 
 } encoder_struct;
 
-#if 0
-/* Encoder History Data Storage
- *
- * This uses the AM1808 On Chip RAM (128K) as a ring buffer to store the encoder event history
- *
- */
-
-typedef uint32_t event_index_t;
-
-typedef struct {
-	bool			accessible;							// Semaphore: TRUE if event history buffer can be accessed by driver (modified only by PRU)
-	event_index_t	ringbuf_maxitems;					// Maximum number of items in ringbuf
-	event_index_t	lastevent_index;					// Index of most recently captured event
-	timer_t			lastevent_time;						// Timestamp of raw speed calculation (and last event update)
-	encoder_count_t raw_speed[MAX_TACHO_MOTORS];		// Counter Difference (per window) between current entry and oldest entry in history buffer
-
-} encoder_history_struct;
-
-typedef struct {
-	encoder_count_t count[MAX_TACHO_MOTORS];
-} encoder_event_struct;
-
-// FIXME: The On Chip RAM needs to  be shared with the PRU SUART buffers
-#define ON_CHIP_RAM_START ((volatile encoder_history_struct *)(0x80002000))
-#define ON_CHIP_RAM_SIZE  0x2000
-#define EVENT_RINGBUF_START  (volatile encoder_event_struct *) ((ON_CHIP_RAM_START + sizeof(encoder_event_struct)))
-#define RINGBUF_MAXITEMS ((ON_CHIP_RAM_SIZE - sizeof(encoder_history_struct)) / (MAX_TACHO_MOTORS * sizeof(encoder_event_struct)))
-#endif
-
-/** reset_encoder_config
- *
- * Internal routine
- *
- * Resets the encoder config for the given motor
- *
- * @param motor: motor_identifier
- * @param  reset_count: bool, Reset encoder counters if true
- * @return Pointer to encoder_struct
- *
- */
-encoder_struct *reset_encoder_config(motor_identifier motor, bool reset_count);
 
 /** tachoencoder_extractmotorevent
  *
@@ -186,19 +133,6 @@ encoder_struct *reset_encoder_config(motor_identifier motor, bool reset_count);
  */
 encoder_value tachoencoder_extractmotorevent(motor_identifier motor, encodervec_t event);
 
-#if 0
-/** tachoencoder_readmotor
- *
- * Internal routine
- *
- * Retrieve the encoder value from the given motor
- *
- * @param motor: motor_identifier
- * @return encoder_value
- *
- */
-encoder_value tachoencoder_readmotor(motor_identifier motor);
-#endif
 
 /** tachoencoder_readallmotors
  *
@@ -226,9 +160,18 @@ encodervec_t tachoencoder_readallmotors();
  */
 encoder_direction tachoencoder_updatemotorstate(motor_identifier motor, encoder_value encval);
 
-/** tachoencoder_getdircount
+/** tachoencoder_reset
  *
- * Internal routine (for debugging)
+ * Resets the encoder config for the given motor
+ *
+ * @param motor: motor_identifier
+ * @param  reset_count: bool, Reset encoder counters if true
+ * @return Pointer to encoder_struct
+ *
+ */
+encoder_struct *tachoencoder_reset(motor_identifier motor, bool reset_count);
+
+/** tachoencoder_getdircount
  *
  * Retrieves tacho encoder direction and count for given motor
  *
@@ -239,36 +182,6 @@ encoder_direction tachoencoder_updatemotorstate(motor_identifier motor, encoder_
  *
  */
 encoder_direction tachoencoder_getdircount(motor_identifier motor, encoder_count_t *count);
-
-#if 0
-/** tachoencoder_init
- *
- * Initialize tacho encoder
- *
- * All motor encoder counts are zeroed
- *
- * @param maxitems: event_index_t, maximum number of items in ring buffer
- *
- * @return None
- *
- */
-void tachoencoder_init(event_index_t maxitems);
-
-/** tachoencoder_reset
- *
- * Reset tacho encoder history buffers for all motors
- *
- * Motor activation status remains unchanged.
- *
- * This routine does not clear the per-motor encoder count
- * (All entries in history buffer is set to current per-motor encoder count)
- *
- * @param None
- * @return None
- *
- */
-void tachoencoder_reset();
-#endif
 
 /** tachoencoder_hasnewevent
  *
@@ -292,21 +205,6 @@ bool tachoencoder_hasnewevent(encodervec_t *eventvec);
  *
  */
 void tachoencoder_updateencoderstate(encodervec_t neweventvec, timer_t timestamp);
-
-#if 0
-/** tachoencoder_updateteventbuffer
- *
- * Update the event history buffer for given index with the tachometer counts for all motors
- * and the current raw speed (delta count between current and oldest readings) for each motor
- *
- * @param index: event_index_t (Capture Event index value)
- * @param timestamp: timer_t (Capture Event Timer value)
- * @return None
- *
- */
-void tachoencoder_updateteventbuffer(event_index_t index, timer_t timestamp);
-#endif
-
 
 /*@}*/
 /*@}*/
