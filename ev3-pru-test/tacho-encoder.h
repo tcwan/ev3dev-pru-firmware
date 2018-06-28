@@ -137,7 +137,7 @@ typedef struct {
  *
  */
 
-typedef long event_index_t;
+typedef uint32_t event_index_t;
 
 typedef struct {
 	bool			accessible;							// Semaphore: TRUE if event history buffer can be accessed by driver (modified only by PRU)

@@ -71,7 +71,7 @@
 #define RIGHT_RED DIODE3
 #define RIGHT_GREEN DIODE2
 
-typedef long debug_count_t;
+typedef uint32_t debug_count_t;
 
 typedef enum led_identifier_t {
     LEFT = 0, RIGHT, MAX_LEDS      // MAX_LEDS used to count number of display LEDs
