@@ -1,10 +1,11 @@
 /****************************************************************************/
-/*  AM335x_PRU.cmd                                                          */
+/*  AM18xx_PRU.cmd                                                          */
 /*  Copyright (c) 2015  Texas Instruments Incorporated                      */
+/*  Copyright (c) 2018  David Lechner <david@lechnology.com>                */
 /*                                                                          */
 /*    Description: This file is a linker command file that can be used for  */
 /*                 linking PRU programs built with the C compiler and       */
-/*                 the resulting .out file on an AM335x device.             */
+/*                 the resulting .out file on an AM18xx device.             */
 /****************************************************************************/
 
 -cr	/* Link using C conventions */
@@ -13,7 +14,7 @@
 MEMORY
 {
       PAGE 0:
-	/* 4kB PRU0/1 Instruction RAM */
+	/* 2kB PRU0/1 Instruction RAM */
 	PRU_IMEM	: org = 0x00000000 len = 0x00001000
 
       PAGE 1:
@@ -42,6 +43,12 @@ MEMORY
 	UART1		: org = 0x01D0C000 len = 0x00000088	CREGISTER=11
 	UART2		: org = 0x01D0D000 len = 0x00000088	CREGISTER=12
 	USB0		: org = 0x01E00000 len = 0x00000100	CREGISTER=13
+	MCASP0_CTL	: org = 0x01D00000 len = 0x00001000	CREGISTER=25 /* indexed */
+
+	// IMPORTANT: PRU0_CTRL.CONTABPROPTR1_bit.C30 needs to be set to match
+	// this address before using it. We are only using a 512B region in the
+	// last 1K for the rpmsg buffer.
+	SHARED_RAM	: org = 0x8001FC00 len - 0x00000200	CREGISTER=30 /* indexed */
 
 	RSVD9		: org = 0x01D06000 len = 0x00000100	CREGISTER=9
 	RSVD10		: org = 0x01D0A000 len = 0x00000100	CREGISTER=10
@@ -53,11 +60,6 @@ MEMORY
 
 /* Specify the sections allocation into memory */
 SECTIONS {
-	/* Forces _c_int00 to the start of PRU IRAM. Not necessary when loading
-	 * an ELF file, but useful when loading a binary
-	 */
-	.text:_c_int00*	> 0x0, PAGE 0
-
 	.text		> PRU_IMEM, PAGE 0
 	.stack		> PRU_DMEM_0_1, PAGE 1
 	.bss		> PRU_DMEM_0_1, PAGE 1
