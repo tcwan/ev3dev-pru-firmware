@@ -51,12 +51,12 @@ static volatile encoder_event_struct *encoder_event_buffer = EVENT_RINGBUF_START
 /* Private utility functions */
 void _set_semaphore() {
     // Set semaphore
-    encoder_history_config->updating = true;
+    encoder_history_config->accessible = false;
 }
 
 void _release_semaphore() {
     // Release semaphore
-    encoder_history_config->updating = false;
+    encoder_history_config->accessible = true;
 }
 
 encoder_struct *_reset_encoder_config(motor_identifier motor, bool reset_count) {
@@ -265,7 +265,9 @@ void tachoencoder_init(event_index_t maxitems) {
 
 	// Initialize Encoder History struct and history buffer (assumed contiguous)
     memset((void *) encoder_history_config, 0, sizeof(encoder_history_struct) + sizeof(encoder_event_struct) * maxitems);
+#if 0
     _set_semaphore();                           // Semaphore was zeroed out by memset()
+#endif
     encoder_history_config->ringbuf_maxitems = maxitems;
 #if 0
     // Merge buffer clearing code into one memset() call
