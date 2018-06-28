@@ -159,6 +159,19 @@ typedef struct {
 #define EVENT_RINGBUF_START  (volatile encoder_event_struct *) ((ON_CHIP_RAM_START + sizeof(encoder_event_struct)))
 #define RINGBUF_MAXITEMS ((ON_CHIP_RAM_SIZE - sizeof(encoder_history_struct)) / (MAX_TACHO_MOTORS * sizeof(encoder_event_struct)))
 
+/** reset_encoder_config
+ *
+ * Internal routine
+ *
+ * Resets the encoder config for the given motor
+ *
+ * @param motor: motor_identifier
+ * @param  reset_count: bool, Reset encoder counters if true
+ * @return Pointer to encoder_struct
+ *
+ */
+encoder_struct *reset_encoder_config(motor_identifier motor, bool reset_count);
+
 /** tachoencoder_extractmotorevent
  *
  * Internal routine

@@ -59,7 +59,8 @@ void _release_semaphore() {
     encoder_history_config->accessible = true;
 }
 
-encoder_struct *_reset_encoder_config(motor_identifier motor, bool reset_count) {
+/* Internal Routines */
+encoder_struct *reset_encoder_config(motor_identifier motor, bool reset_count) {
     encoder_struct *encoder_configptr = &(encoder_config[motor]);
 
     encoder_configptr->dir = UNKNOWN;
@@ -70,7 +71,6 @@ encoder_struct *_reset_encoder_config(motor_identifier motor, bool reset_count) 
     return encoder_configptr;               // Reduce array address conversion overhead
 }
 
-/* Internal Routines */
 encoder_value tachoencoder_extractmotorevent(motor_identifier motor, encodervec_t event) {
 
 	// This routine is used to convert the event vector obtained by tachoencoder_readallmotors()
