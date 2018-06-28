@@ -14,6 +14,22 @@
 #include <am18xx/sys_timer.h>
 
 #include "resource_table.h"
+#include "tacho-encoder.h"
+
+// define to flash LEDs for debugging
+#define ENABLE_LEDDEBUG
+
+#ifdef ENABLE_LEDDEBUG
+
+#include "leddebug.h"
+#define LEDDEBUG(motor, dir) leddebug_update(motor, dir)
+#define FLASHING_INTERVAL 1                     // Controls the LED toggling interval per leddebug() calls
+
+#else
+
+#define LEDDEBUG(side, dir)
+
+#endif
 
 #define TRIGGER_PERIOD_MS 10
 
@@ -58,6 +74,37 @@ struct ev3_pru_tacho_msg {
 // clock is 24MHz, so 24000 ticks/msec
 #define TRIGGER_PERIOD_TICKS (TRIGGER_PERIOD_MS * 24000)
 
+static timer_t last_timerexpiry;
+static timer_t timer_period;
+
+timer_t timer_gettimestamp() {
+    return TIMER64P0.TIM34;
+}
+
+// returns timer start time
+timer_t timer_init(timer_t period) {
+    last_timerexpiry = timer_gettimestamp();
+    timer_period = period;
+    return last_timerexpiry;
+}
+
+bool timer_hasexpired(timer_t *currtime) {
+    *currtime = timer_gettimestamp();
+
+    /* TIMER64P0.TIM34 is configured by Linux as a free run counter so we
+     * can use it here to keep track of time. This timer runs off of the
+     * external oscillator, so it runs at 24MHz (each count is 41.67ns).
+     * Since it counts up to the full unsigned 32-bit value, we can
+     * subtract without worrying about if the value wrapped around.
+     */
+    if (*currtime - last_timerexpiry >= timer_period) {
+        last_timerexpiry += timer_period;       // advance timer expiry timestamp
+        return true;
+    }
+    else
+        return false;
+}
+
 volatile uint32_t register __R31;
 
 // Only have 512B local RAM for stack/data, so this won't fit there. Use shared RAM instead.
@@ -65,12 +112,44 @@ volatile __far uint8_t payload[RPMSG_BUF_SIZE] __attribute__((cregister("SHARED_
 
 #define LED (GPIO.OUT_DATA67_bit.GP6P7)
 
+void _update_msgval(struct ev3_pru_tacho_msg *msg, timer_t timestamp) {
+    msg->value[EV3_PRU_IIO_CH_TIMESTAMP] = timestamp;
+    tachoencoder_getdircount(MOTOR0, &(msg->value[EV3_PRU_IIO_CH_TACHO_A]));
+    tachoencoder_getdircount(MOTOR1, &(msg->value[EV3_PRU_IIO_CH_TACHO_B]));
+    tachoencoder_getdircount(MOTOR2, &(msg->value[EV3_PRU_IIO_CH_TACHO_C]));
+    tachoencoder_getdircount(MOTOR3, &(msg->value[EV3_PRU_IIO_CH_TACHO_D]));
+}
+
+
 int main(void) {
+
+#ifdef ENABLE_LEDDEBUG
+
+#define LEFTMOTOR MOTOR1
+#define RIGHTMOTOR MOTOR2
+
+    leddebug_init(FLASHING_INTERVAL);
+    leddebug_assignmotors(LEFTMOTOR, RIGHTMOTOR);
+
+#endif
+    // Debug info
+    encoder_direction motor_direction;
+    encoder_direction motor_olddirectionleft = UNKNOWN;
+    encoder_direction motor_olddirectionright = UNKNOWN;
+    encoder_count_t   motor_count;
+    encoder_count_t   motor_oldcountleft = 0;
+    encoder_count_t   motor_oldcountright = 0;
+
+    // Tacho event detection
+    encodervec_t newevent = 0;
+
+    timer_t currtime;
+
 	volatile uint8_t *status;
 	struct pru_rpmsg_transport transport;
 	uint16_t src, dst, len;
 	uint16_t trigger_src = 0, trigger_dst = 0;
-	uint32_t start_time;
+	// uint32_t start_time;
 	bool started = false;
 
 	// Set cregister index to match AM18xx_PRU.cmd
@@ -88,30 +167,50 @@ int main(void) {
 
 	while (pru_rpmsg_channel(RPMSG_NS_CREATE, &transport, "ev3-tacho-rpmsg", trigger_src) != PRU_RPMSG_SUCCESS);
 
-	start_time = TIMER64P0.TIM34;
+	// Setup quadrature encoders
+	// Don't use tachometer_init() for now since we're not storing into the event history buffer
+    // Initialize per-motor Encoder Settings
+    int i;
+    for (i = 0; i < MAX_TACHO_MOTORS; i++) {
+        reset_encoder_config((motor_identifier) i, true);          // Initialize local state
+
+	//start_time = TIMER64P0.TIM34;
+    timer_init(TIMER_PERIOD);
 
 	while (true) {
+
+	    if (started) {
+            if (tachoencoder_hasnewevent(&newevent)) {
+                currtime = timer_gettimestamp();
+                tachoencoder_updateencoderstate(newevent, currtime);        // Actual event timestamp
+                motor_direction = tachoencoder_getdircount(LEFTMOTOR, &motor_count);
+
+                if ((motor_direction != motor_olddirectionleft) || (motor_count != motor_oldcountleft)) {
+                    LEDDEBUG(LEFTMOTOR, motor_direction);               // Toggle LED state
+                    motor_oldcountleft = motor_count;
+                    motor_olddirectionleft = motor_direction;
+                }
+                motor_direction = tachoencoder_getdircount(RIGHTMOTOR, &motor_count);
+                if ((motor_direction != motor_olddirectionright) || (motor_count != motor_oldcountright)) {
+                    LEDDEBUG(RIGHTMOTOR, motor_direction);               // Toggle LED state
+                    motor_oldcountright = motor_count;
+                    motor_olddirectionright = motor_direction;
+
+                }
+            }
+	    }
+
 		// wait for the ARM to kick us
 		while (!(__R31 & HOST_INT)) {
-			uint32_t now = TIMER64P0.TIM34;
 
-			// send periodic updates when trigger has been started
-			if (now - start_time >= TRIGGER_PERIOD_TICKS) {
-				start_time += TRIGGER_PERIOD_TICKS;
-
-				if (started) {
+	        if (timer_hasexpired(&currtime) && started) {
 					struct ev3_pru_tacho_msg msg;
+	                motor_direction = tachoencoder_getdircount(LEFTMOTOR, &motor_count);
 
 					msg.type = EV3_PRU_TACHO_MSG_UPDATE;
-					msg.value[EV3_PRU_IIO_CH_TIMESTAMP] = now;
-					msg.value[EV3_PRU_IIO_CH_TACHO_A] = 1;
-					msg.value[EV3_PRU_IIO_CH_TACHO_B] = 2;
-					msg.value[EV3_PRU_IIO_CH_TACHO_C] = 3;
-					msg.value[EV3_PRU_IIO_CH_TACHO_D] = 4;
-
+					__update_msgval(&msg, currtime);
 					pru_rpmsg_send(&transport, trigger_src, trigger_dst, &msg, sizeof(msg));
 				}
-			}
 		}
 
 		// clear the interrupt
@@ -119,21 +218,20 @@ int main(void) {
 
 		// Receive all available messages, multiple messages can be sent per kick
 		while (pru_rpmsg_receive(&transport, &src, &dst, (void *)payload, &len) == PRU_RPMSG_SUCCESS) {
-			struct ev3_pru_tacho_msg *msg = (void *)payload;
+			struct ev3_pru_tacho_msg *msgptr = (void *)payload;
 
-			switch (msg->type) {
+			switch (msgptr->type) {
 			case EV3_PRU_TACHO_MSG_REQ_ONE:
-				msg->value[EV3_PRU_IIO_CH_TIMESTAMP] = TIMER64P0.TIM34;
-				msg->value[EV3_PRU_IIO_CH_TACHO_A] = 1;
-				msg->value[EV3_PRU_IIO_CH_TACHO_B] = 2;
-				msg->value[EV3_PRU_IIO_CH_TACHO_C] = 3;
-				msg->value[EV3_PRU_IIO_CH_TACHO_D] = 4;
-				pru_rpmsg_send(&transport, dst, src, msg, sizeof(*msg));
+                __update_msgval(msgptr, timer_gettimestamp());
+				pru_rpmsg_send(&transport, dst, src, msg, sizeof(*msgptr));
 				break;
 			case EV3_PRU_TACHO_MSG_START:
 				started = true;
 				trigger_src = dst;
 				trigger_dst = src;
+			    int i;
+			    for (i = 0; i < MAX_TACHO_MOTORS; i++) {
+			        _=reset_encoder_config((motor_identifier) i, false);          // reset local state (encoder count is not cleared)
 				break;
 			case EV3_PRU_TACHO_MSG_STOP:
 				started = false;
