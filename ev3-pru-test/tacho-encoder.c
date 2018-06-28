@@ -281,7 +281,7 @@ void tachoencoder_init(event_index_t maxitems) {
 	// Initialize per-motor Encoder Settings
 	int i;
 	for (i = 0; i < MAX_TACHO_MOTORS; i++) {
-		_reset_encoder_config((motor_identifier) i, true);          // Initialize local state
+		reset_encoder_config((motor_identifier) i, true);          // Initialize local state
 
 #if 0
 		// already cleared by memset()
@@ -307,7 +307,7 @@ void tachoencoder_reset() {
         encoder_struct *encoder_configptr;
 
         // Reset encoder state
-	    encoder_configptr = _reset_encoder_config((motor_identifier) i, false);
+	    encoder_configptr = reset_encoder_config((motor_identifier) i, false);
 
 		// initialize event history buffer with last count for each motor
 		latestevent.count[i] = encoder_configptr->count;
