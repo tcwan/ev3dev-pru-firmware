@@ -42,7 +42,7 @@
 #include <stdbool.h>
 #include "tacho-encoder.h"
 
-static encodervec_t lasteventvec;
+static encodervec_t lasteventvec = EVENTVEC_RESETMASK;
 static encoder_struct encoder_config[MAX_TACHO_MOTORS];
 
 static volatile encoder_history_struct *encoder_history_config = ON_CHIP_RAM_START;
