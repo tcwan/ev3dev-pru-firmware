@@ -98,7 +98,7 @@
 #define ENCODER_MOTOR3VEC_SHIFT (encodervec_t) 6
 #endif
 
-typedef long encoder_count_t;
+typedef uint32_t encoder_count_t;
 typedef uint32_t timer_t;
 typedef uint8_t  encodervec_t;
 
