@@ -138,7 +138,7 @@ typedef struct {
  *
  */
 
-typedef long event_index_t;
+typedef uint32_t event_index_t;
 
 typedef struct {
 	bool			accessible;							// Semaphore: TRUE if event history buffer can be accessed by driver (modified only by PRU)
@@ -152,13 +152,13 @@ typedef struct {
 typedef struct {
 	encoder_count_t count[MAX_TACHO_MOTORS];
 } encoder_event_struct;
-#endif
 
 // FIXME: The On Chip RAM needs to  be shared with the PRU SUART buffers
 #define ON_CHIP_RAM_START ((volatile encoder_history_struct *)(0x80002000))
 #define ON_CHIP_RAM_SIZE  0x2000
 #define EVENT_RINGBUF_START  (volatile encoder_event_struct *) ((ON_CHIP_RAM_START + sizeof(encoder_event_struct)))
 #define RINGBUF_MAXITEMS ((ON_CHIP_RAM_SIZE - sizeof(encoder_history_struct)) / (MAX_TACHO_MOTORS * sizeof(encoder_event_struct)))
+#endif
 
 /** reset_encoder_config
  *
@@ -240,6 +240,7 @@ encoder_direction tachoencoder_updatemotorstate(motor_identifier motor, encoder_
  */
 encoder_direction tachoencoder_getdircount(motor_identifier motor, encoder_count_t *count);
 
+#if 0
 /** tachoencoder_init
  *
  * Initialize tacho encoder
@@ -267,7 +268,7 @@ void tachoencoder_init(event_index_t maxitems);
  *
  */
 void tachoencoder_reset();
-
+#endif
 
 /** tachoencoder_hasnewevent
  *
@@ -292,6 +293,7 @@ bool tachoencoder_hasnewevent(encodervec_t *eventvec);
  */
 void tachoencoder_updateencoderstate(encodervec_t neweventvec, timer_t timestamp);
 
+#if 0
 /** tachoencoder_updateteventbuffer
  *
  * Update the event history buffer for given index with the tachometer counts for all motors
@@ -303,6 +305,7 @@ void tachoencoder_updateencoderstate(encodervec_t neweventvec, timer_t timestamp
  *
  */
 void tachoencoder_updateteventbuffer(event_index_t index, timer_t timestamp);
+#endif
 
 
 /*@}*/

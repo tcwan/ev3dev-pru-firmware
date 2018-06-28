@@ -17,7 +17,7 @@
 #include "tacho-encoder.h"
 
 // define to flash LEDs for debugging
-#define ENABLE_LEDDEBUG
+#undef ENABLE_LEDDEBUG
 
 #ifdef ENABLE_LEDDEBUG
 
@@ -131,7 +131,6 @@ int main(void) {
     leddebug_init(FLASHING_INTERVAL);
     leddebug_assignmotors(LEFTMOTOR, RIGHTMOTOR);
 
-#endif
     // Debug info
     encoder_direction motor_direction;
     encoder_direction motor_olddirectionleft = UNKNOWN;
@@ -139,6 +138,7 @@ int main(void) {
     encoder_count_t   motor_count;
     encoder_count_t   motor_oldcountleft = 0;
     encoder_count_t   motor_oldcountright = 0;
+#endif
 
     // Tacho event detection
     encodervec_t newevent = 0;
@@ -174,9 +174,10 @@ int main(void) {
     // Initialize per-motor Encoder Settings
     for (i = 0; i < MAX_TACHO_MOTORS; i++) {
         reset_encoder_config((motor_identifier) i, true);          // Initialize local state
+    }
 
 	//start_time = TIMER64P0.TIM34;
-    timer_init(TIMER_PERIOD);
+    timer_init(TRIGGER_PERIOD_TICKS);
 
 	while (true) {
 
@@ -184,6 +185,7 @@ int main(void) {
             if (tachoencoder_hasnewevent(&newevent)) {
                 currtime = timer_gettimestamp();
                 tachoencoder_updateencoderstate(newevent, currtime);        // Actual event timestamp
+#ifdef ENABLE_LEDDEBUG
                 motor_direction = tachoencoder_getdircount(LEFTMOTOR, &motor_count);
 
                 if ((motor_direction != motor_olddirectionleft) || (motor_count != motor_oldcountleft)) {
@@ -196,8 +198,8 @@ int main(void) {
                     LEDDEBUG(RIGHTMOTOR, motor_direction);               // Toggle LED state
                     motor_oldcountright = motor_count;
                     motor_olddirectionright = motor_direction;
-
                 }
+#endif
             }
 	    }
 
@@ -206,7 +208,6 @@ int main(void) {
 
 	        if (timer_hasexpired(&currtime) && started) {
 					struct ev3_pru_tacho_msg msg;
-	                motor_direction = tachoencoder_getdircount(LEFTMOTOR, &motor_count);
 
 					msg.type = EV3_PRU_TACHO_MSG_UPDATE;
 					_update_msgval(&msg, currtime);
@@ -224,7 +225,7 @@ int main(void) {
 			switch (msgptr->type) {
 			case EV3_PRU_TACHO_MSG_REQ_ONE:
                 _update_msgval(msgptr, timer_gettimestamp());
-				pru_rpmsg_send(&transport, dst, src, msg, sizeof(*msgptr));
+				pru_rpmsg_send(&transport, dst, src, msgptr, sizeof(*msgptr));
 				break;
 			case EV3_PRU_TACHO_MSG_START:
 				started = true;
@@ -232,6 +233,7 @@ int main(void) {
 				trigger_dst = src;
 			    for (i = 0; i < MAX_TACHO_MOTORS; i++) {
 			        reset_encoder_config((motor_identifier) i, false);          // reset local state (encoder count is not cleared)
+			    }
 				break;
 			case EV3_PRU_TACHO_MSG_STOP:
 				started = false;

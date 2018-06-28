@@ -45,6 +45,7 @@
 static encodervec_t lasteventvec = EVENTVEC_RESETMASK;
 static encoder_struct encoder_config[MAX_TACHO_MOTORS];
 
+#if 0
 static volatile encoder_history_struct *encoder_history_config = ON_CHIP_RAM_START;
 static volatile encoder_event_struct *encoder_event_buffer = EVENT_RINGBUF_START;
 
@@ -58,6 +59,7 @@ void _release_semaphore() {
     // Release semaphore
     encoder_history_config->accessible = true;
 }
+#endif
 
 /* Internal Routines */
 encoder_struct *reset_encoder_config(motor_identifier motor, bool reset_count) {
@@ -261,6 +263,7 @@ encoder_direction tachoencoder_getdircount(motor_identifier motor, encoder_count
 
 
 /* Public Routines */
+#if 0
 void tachoencoder_init(event_index_t maxitems) {
 
 	// Initialize Encoder History struct and history buffer (assumed contiguous)
@@ -319,6 +322,7 @@ void tachoencoder_reset() {
     _release_semaphore();
 
 }
+#endif
 
 
 bool tachoencoder_hasnewevent(encodervec_t *eventvec) {
@@ -347,7 +351,7 @@ void tachoencoder_updateencoderstate(encodervec_t neweventvec, timer_t timestamp
 
 }
 
-
+#if 0
 void tachoencoder_updateteventbuffer(event_index_t index, timer_t timestamp) {
 
 	volatile encoder_event_struct *itemptr;		// pointer to event item
@@ -378,4 +382,4 @@ void tachoencoder_updateteventbuffer(event_index_t index, timer_t timestamp) {
 
 	_release_semaphore();
 }
-
+#endif
