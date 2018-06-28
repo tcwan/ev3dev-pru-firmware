@@ -145,6 +145,8 @@ int main(void) {
 
     timer_t currtime;
 
+    int i;
+
 	volatile uint8_t *status;
 	struct pru_rpmsg_transport transport;
 	uint16_t src, dst, len;
@@ -170,7 +172,6 @@ int main(void) {
 	// Setup quadrature encoders
 	// Don't use tachometer_init() for now since we're not storing into the event history buffer
     // Initialize per-motor Encoder Settings
-    int i;
     for (i = 0; i < MAX_TACHO_MOTORS; i++) {
         reset_encoder_config((motor_identifier) i, true);          // Initialize local state
 
@@ -208,7 +209,7 @@ int main(void) {
 	                motor_direction = tachoencoder_getdircount(LEFTMOTOR, &motor_count);
 
 					msg.type = EV3_PRU_TACHO_MSG_UPDATE;
-					__update_msgval(&msg, currtime);
+					_update_msgval(&msg, currtime);
 					pru_rpmsg_send(&transport, trigger_src, trigger_dst, &msg, sizeof(msg));
 				}
 		}
@@ -222,16 +223,15 @@ int main(void) {
 
 			switch (msgptr->type) {
 			case EV3_PRU_TACHO_MSG_REQ_ONE:
-                __update_msgval(msgptr, timer_gettimestamp());
+                _update_msgval(msgptr, timer_gettimestamp());
 				pru_rpmsg_send(&transport, dst, src, msg, sizeof(*msgptr));
 				break;
 			case EV3_PRU_TACHO_MSG_START:
 				started = true;
 				trigger_src = dst;
 				trigger_dst = src;
-			    int i;
 			    for (i = 0; i < MAX_TACHO_MOTORS; i++) {
-			        _=reset_encoder_config((motor_identifier) i, false);          // reset local state (encoder count is not cleared)
+			        reset_encoder_config((motor_identifier) i, false);          // reset local state (encoder count is not cleared)
 				break;
 			case EV3_PRU_TACHO_MSG_STOP:
 				started = false;
